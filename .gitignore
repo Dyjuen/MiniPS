@@ -1,0 +1,19 @@
+# Python
+backend/venv/
+backend/__pycache__/
+*.pyc
+.env
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project
+backend/processing/ml/models/*
+!backend/processing/ml/models/.gitkeep

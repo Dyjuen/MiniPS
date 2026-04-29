@@ -1,0 +1,10 @@
+flask
+flask-cors
+opencv-python
+pillow
+numpy
+scikit-image
+dahuffman
+imagecodecs
+matplotlib
+ultralytics
