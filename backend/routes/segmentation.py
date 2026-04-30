@@ -1,7 +1,10 @@
 from flask import Blueprint, request, jsonify
 from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
+from backend.utils.validators import validate_schema
 from backend.processing.segment import (
-    segment_by_threshold, segment_by_edge, segment_by_region
+    segment_by_threshold, 
+    segment_by_edge, 
+    segment_by_region
 )
 
 segmentation_bp = Blueprint('segmentation', __name__)
@@ -12,12 +15,16 @@ def threshold():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    value = params.get('value', 127)
+    schema = {
+        'value': {'type': int, 'min': 0, 'max': 255, 'default': 127}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = segment_by_threshold(img, value)
+        result = segment_by_threshold(img, params['value'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -33,12 +40,16 @@ def edge():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    method = params.get('method', 'canny')
+    schema = {
+        'method': {'type': str, 'allowed': ['canny', 'sobel'], 'default': 'canny'}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = segment_by_edge(img, method)
+        result = segment_by_edge(img, params['method'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -54,17 +65,18 @@ def region():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    seed_x = params.get('seed_x')
-    seed_y = params.get('seed_y')
-    tolerance = params.get('tolerance', 10)
-    
-    if seed_x is None or seed_y is None:
-        return jsonify({"success": False, "error": "Seed points (seed_x, seed_y) required"}), 400
+    schema = {
+        'seed_x': {'type': int, 'required': True},
+        'seed_y': {'type': int, 'required': True},
+        'tolerance': {'type': int, 'min': 0, 'max': 100, 'default': 10}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = segment_by_region(img, seed_x, seed_y, tolerance)
+        result = segment_by_region(img, params['seed_x'], params['seed_y'], params['tolerance'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 

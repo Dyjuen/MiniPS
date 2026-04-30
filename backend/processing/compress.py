@@ -66,18 +66,17 @@ def encode_image(image_ndarray, method="huffman", params=None):
         decompressed_bytes = codec.decode(comp_bytes)
         
     elif method == "lzw":
-        # Using zlib as a proxy for LZW-like DEFLATE or actual LZW if available
-        # imagecodecs.lzw_encode is better but zlib is standard
-        comp_bytes = zlib.compress(raw_bytes)
+        import imagecodecs
+        comp_bytes = imagecodecs.lzw_encode(raw_bytes)
         comp_size = len(comp_bytes)
-        decompressed_bytes = zlib.decompress(comp_bytes)
+        decompressed_bytes = imagecodecs.lzw_decode(comp_bytes)
         
     elif method == "arithmetic":
-        # Placeholder for arithmetic coding (complex implementation)
-        # Using zlib with high level as proxy for academic purposes
-        comp_bytes = zlib.compress(raw_bytes, level=9)
+        import imagecodecs
+        # JPEG 2000 uses arithmetic coding (MQ-coder)
+        comp_bytes = imagecodecs.jpeg2k_encode(image_ndarray)
         comp_size = len(comp_bytes)
-        decompressed_bytes = zlib.decompress(comp_bytes)
+        decompressed_bytes = imagecodecs.jpeg2k_decode(comp_bytes).tobytes()
         
     elif method == "quantization":
         bits = params.get('bits', 4) if params else 4

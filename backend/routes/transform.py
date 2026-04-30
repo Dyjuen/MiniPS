@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
+from backend.utils.validators import validate_schema
 from backend.processing.transform import (
     rotate_image, flip_image, crop_image, 
     resize_image, translate_image, affine_transform
@@ -13,13 +14,17 @@ def rotate():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    angle = params.get('angle', 0)
-    interp = params.get('interpolation', 'bilinear')
+    schema = {
+        'angle': {'type': float, 'min': 0, 'max': 360, 'default': 0.0},
+        'interpolation': {'type': str, 'allowed': ['nearest', 'bilinear'], 'default': 'bilinear'}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = rotate_image(img, angle, interp)
+        result = rotate_image(img, params['angle'], params['interpolation'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -35,12 +40,16 @@ def flip():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    direction = params.get('direction', 'horizontal')
+    schema = {
+        'direction': {'type': str, 'allowed': ['horizontal', 'vertical'], 'default': 'horizontal'}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = flip_image(img, direction)
+        result = flip_image(img, params['direction'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -56,15 +65,19 @@ def crop():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    x = params.get('x', 0)
-    y = params.get('y', 0)
-    w = params.get('width', 100)
-    h = params.get('height', 100)
+    schema = {
+        'x': {'type': int, 'required': True},
+        'y': {'type': int, 'required': True},
+        'width': {'type': int, 'required': True},
+        'height': {'type': int, 'required': True}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = crop_image(img, x, y, w, h)
+        result = crop_image(img, params['x'], params['y'], params['width'], params['height'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -80,17 +93,18 @@ def resize():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    w = params.get('width')
-    h = params.get('height')
-    interp = params.get('interpolation', 'bilinear')
-    
-    if w is None or h is None:
-        return jsonify({"success": False, "error": "Width and height required"}), 400
+    schema = {
+        'width': {'type': int, 'required': True},
+        'height': {'type': int, 'required': True},
+        'interpolation': {'type': str, 'allowed': ['nearest', 'bilinear'], 'default': 'bilinear'}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = resize_image(img, w, h, interp)
+        result = resize_image(img, params['width'], params['height'], params['interpolation'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -106,13 +120,17 @@ def translate():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    tx = params.get('tx', 0)
-    ty = params.get('ty', 0)
+    schema = {
+        'tx': {'type': int, 'default': 0},
+        'ty': {'type': int, 'default': 0}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = translate_image(img, tx, ty)
+        result = translate_image(img, params['tx'], params['ty'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -128,16 +146,20 @@ def affine():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    matrix = params.get('matrix')
-    interp = params.get('interpolation', 'bilinear')
-    
-    if matrix is None:
-        return jsonify({"success": False, "error": "Matrix required"}), 400
+    params_data = data.get('params', {})
+    if 'matrix' not in params_data:
+        return jsonify({"success": False, "error": "Missing required parameter: matrix"}), 400
+        
+    schema = {
+        'interpolation': {'type': str, 'allowed': ['nearest', 'bilinear'], 'default': 'bilinear'}
+    }
+    is_valid, params, err = validate_schema(params_data, schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = affine_transform(img, matrix, interp)
+        result = affine_transform(img, params_data['matrix'], params['interpolation'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 

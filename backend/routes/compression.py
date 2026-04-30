@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
+from backend.utils.validators import validate_schema
 from backend.processing.compress import compress_jpeg_sim, encode_image
 
 compression_bp = Blueprint('compression', __name__)
@@ -10,12 +11,16 @@ def jpeg_sim():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    quality = params.get('quality', 50)
+    schema = {
+        'quality': {'type': int, 'min': 1, 'max': 100, 'default': 50}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = compress_jpeg_sim(img, quality)
+        result = compress_jpeg_sim(img, params['quality'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -31,12 +36,17 @@ def encode():
     if not data or 'image' not in data:
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
-    params = data.get('params', {})
-    method = params.get('method', 'huffman')
+    schema = {
+        'method': {'type': str, 'allowed': ['huffman', 'rle', 'lzw', 'arithmetic', 'quantization'], 'default': 'huffman'},
+        'bits': {'type': int, 'min': 1, 'max': 8, 'default': 4}
+    }
+    is_valid, params, err = validate_schema(data.get('params', {}), schema)
+    if not is_valid:
+        return jsonify({"success": False, "error": err}), 400
     
     try:
         img = base64_to_ndarray(data['image'])
-        res_img, o_size, c_size, ratio = encode_image(img, method, params)
+        res_img, o_size, c_size, ratio = encode_image(img, params['method'], params)
         res_b64 = ndarray_to_base64(res_img)
         return jsonify({
             "success": True, 
