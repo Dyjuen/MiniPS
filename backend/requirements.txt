@@ -1,6 +1,6 @@
 flask
 flask-cors
-opencv-python
+opencv-python-headless
 pillow
 numpy
 scikit-image
@@ -8,3 +8,4 @@ dahuffman
 imagecodecs
 matplotlib
 ultralytics
+pytest
