@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import * as api from '../../../services/api';
@@ -14,14 +14,35 @@ export default function EnhanceTab() {
   const [translateY, setTranslateY] = useState(0);
   const [interpolation, setInterpolation] = useState('bilinear');
 
+  const isInitialMount = useRef(true);
+
   // Debounce brightness/contrast
   useEffect(() => {
-    if (brightness === 0 && contrast === 0) return;
+    if (isInitialMount.current) return;
     const timer = setTimeout(() => {
       executeOp('Brightness/Contrast', api.applyBrightness, brightness, contrast);
     }, 300);
     return () => clearTimeout(timer);
   }, [brightness, contrast]);
+
+  // Handle Rotate change
+  useEffect(() => {
+    if (isInitialMount.current || rotate === 0) return;
+    executeOp('Rotate', api.applyRotate, rotate, interpolation);
+  }, [rotate]);
+
+  // Handle Interpolation change - re-apply if rotate or scale is active
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (rotate !== 0) {
+      executeOp('Rotate', api.applyRotate, rotate, interpolation);
+    } else if (scale !== 100) {
+      executeOp('Resize', api.applyResize, Math.round(scale), Math.round(scale), interpolation);
+    }
+  }, [interpolation]);
 
   return (
     <div className="tab-content">
@@ -41,13 +62,10 @@ export default function EnhanceTab() {
 
       <section>
         <h4>Geometric transform</h4>
-        <SliderControl label="Rotate" min={0} max={360} value={rotate} unit="°" onChange={(v) => {
-          setRotate(v);
-          executeOp('Rotate', api.applyRotate, v, interpolation);
-        }} />
+        <SliderControl label="Rotate" min={0} max={360} value={rotate} unit="°" onChange={setRotate} />
         <SliderControl label="Scale" min={10} max={200} value={scale} unit="%" onChange={(v) => {
           setScale(v);
-          executeOp('Resize', api.applyResize, Math.round(v), Math.round(v), interpolation); // Needs actual dimensions but scaling for simplicity here
+          executeOp('Resize', api.applyResize, Math.round(v), Math.round(v), interpolation);
         }} />
         <SliderControl label="Translate X" min={-300} max={300} value={translateX} onChange={(v) => {
           setTranslateX(v);

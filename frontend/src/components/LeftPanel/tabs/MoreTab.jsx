@@ -9,16 +9,35 @@ export default function MoreTab() {
   const { executeOp } = useApi();
   const [quality, setQuality] = useState(85);
   const [method, setMethod] = useState('huffman');
+  const [detectionType, setDetectionType] = useState('General objects');
   const [detectionResults, setDetectionResults] = useState(null);
+  const [isDetecting, setIsDetecting] = useState(false);
   
   const originalSize = 284;
   const estSize = Math.round(originalSize * (quality / 100));
 
   const handleDownload = (b64) => {
     const link = document.createElement('a');
-    link.href = b64;
+    link.href = `data:image/jpeg;base64,${b64}`;
     link.download = 'compressed_image.jpg';
     link.click();
+  };
+
+  const handleDetection = async () => {
+    setIsDetecting(true);
+    setDetectionResults('Running detection...');
+    try {
+      const data = await api.runDetection(currentImage, detectionType, 0.5);
+      if (data.results && data.results.length > 0) {
+        setDetectionResults(data.results.map(r => `${r.label}: ${(r.confidence * 100).toFixed(1)}%`).join(', '));
+      } else {
+        setDetectionResults('No objects detected.');
+      }
+    } catch (err) {
+      setDetectionResults('Detection failed: ' + err.message);
+    } finally {
+      setIsDetecting(false);
+    }
   };
 
   return (
@@ -29,8 +48,12 @@ export default function MoreTab() {
         <p className="small-text">Estimated size: {estSize} KB</p>
         <div className="btn-group">
           <button onClick={async () => {
-            const data = await api.applyJpegSim(currentImage, quality);
-            handleDownload(data.image);
+            try {
+              const data = await api.applyJpegSim(currentImage, quality);
+              handleDownload(data.image);
+            } catch (err) {
+              alert('Download failed: ' + err.message);
+            }
           }}>Save (JPEG)</button>
           <button onClick={() => executeOp('JPEG Sim', api.applyJpegSim, quality)}>Simulate</button>
         </div>
@@ -56,13 +79,19 @@ export default function MoreTab() {
         <h4>Object recognition (CNN)</h4>
         <div className="select-control">
           <label>Detection type</label>
-          <select onChange={(e) => console.log(e.target.value)}>
-            <option>Human</option>
-            <option>Animal</option>
-            <option>General objects</option>
+          <select value={detectionType} onChange={(e) => setDetectionType(e.target.value)}>
+            <option value="Human">Human</option>
+            <option value="Animal">Animal</option>
+            <option value="General objects">General objects</option>
           </select>
         </div>
-        <button className="btn-block" onClick={() => setDetectionResults('Detection running...')}>Run Detection</button>
+        <button 
+          className="btn-block" 
+          onClick={handleDetection}
+          disabled={isDetecting}
+        >
+          {isDetecting ? 'Running...' : 'Run Detection'}
+        </button>
         <div className="result-area">{detectionResults || 'No detection results yet'}</div>
       </section>
     </div>

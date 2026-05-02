@@ -1,5 +1,7 @@
 import React, { useRef } from 'react';
 import { useAppState } from '../hooks/useAppState';
+import { useApi } from '../hooks/useApi';
+import * as api from '../services/api';
 
 export default function Toolbar() {
   const { 
@@ -10,9 +12,15 @@ export default function Toolbar() {
     handleZoom,
     history,
     historyIndex,
-    setHistoryIndex 
+    setHistoryIndex,
+    cropRect,
+    setCropRect,
+    selectedTool,
+    setSelectedTool,
+    addToast 
   } = useAppState();
 
+  const { executeOp } = useApi();
   const fileInputRef = useRef(null);
 
   const handleUndo = () => {
@@ -20,6 +28,7 @@ export default function Toolbar() {
       const idx = historyIndex - 1;
       setHistoryIndex(idx);
       setCurrentImage(history[idx]);
+      addToast('Undo applied');
     }
   };
 
@@ -28,30 +37,64 @@ export default function Toolbar() {
       const idx = historyIndex + 1;
       setHistoryIndex(idx);
       setCurrentImage(history[idx]);
+      addToast('Redo applied');
     }
   };
 
   const handleSave = () => {
-    if (!currentImage) return;
+    if (!currentImage) return addToast('No image to save', 'error');
     const link = document.createElement('a');
     link.href = currentImage;
     link.download = 'processed_image.png';
     link.click();
   };
 
+  const toggleCrop = () => {
+    if (selectedTool === 'crop') {
+      setSelectedTool('move');
+      setCropRect(null);
+    } else {
+      setSelectedTool('crop');
+      setCropRect({ x: 50, y: 50, width: 200, height: 150 });
+      addToast('Crop mode active. Press Enter on image to crop.');
+    }
+  };
+
   const buttons = [
-    { label: 'Load', action: () => fileInputRef.current.click() },
-    { label: 'Save', action: handleSave },
-    { label: 'Crop', action: () => console.log('Crop') },
-    { label: 'Move', action: () => console.log('Move') },
-    { label: 'Zoom+', action: () => handleZoom(25) },
-    { label: 'Zoom-', action: () => handleZoom(-25) },
-    { label: 'Rotate CW', action: () => console.log('Rotate CW') },
-    { label: 'Flip H', action: () => console.log('Flip H') },
-    { label: 'Flip V', action: () => console.log('Flip V') },
-    { label: 'Undo', action: handleUndo },
-    { label: 'Redo', action: handleRedo },
-    { label: 'Reset', action: handleReset, className: 'btn-danger' },
+    { label: 'Load', action: () => fileInputRef.current.click(), title: 'Load Image' },
+    { label: 'Save', action: handleSave, title: 'Save Image' },
+    { 
+      label: 'Crop', 
+      action: toggleCrop, 
+      title: 'Toggle Crop Overlay', 
+      className: selectedTool === 'crop' ? 'active' : '' 
+    },
+    { 
+      label: 'Move', 
+      action: () => { setSelectedTool('move'); setCropRect(null); }, 
+      title: 'Move Tool',
+      className: selectedTool === 'move' ? 'active' : '' 
+    },
+    { label: 'Zoom+', action: () => handleZoom(25), title: 'Zoom In' },
+    { label: 'Zoom-', action: () => handleZoom(-25), title: 'Zoom Out' },
+    { 
+      label: 'Rotate CW', 
+      action: () => executeOp('Rotate 90', api.applyRotate, 90, 'bilinear'), 
+      title: 'Rotate 90° Clockwise' 
+    },
+    { 
+      label: 'Flip H', 
+      action: () => executeOp('Flip H', api.applyFlip, 'horizontal'), 
+      title: 'Flip Horizontal' 
+    },
+    { 
+      label: 'Flip V', 
+      action: () => executeOp('Flip V', api.applyFlip, 'vertical'), 
+      title: 'Flip Vertical' 
+    },
+    { label: 'Undo', action: handleUndo, title: 'Undo (Ctrl+Z)' },
+    { label: 'Redo', action: handleRedo, title: 'Redo (Ctrl+Y)' },
+    { label: 'Reset', action: handleReset, className: 'btn-danger', title: 'Reset to Original' },
   ];
 
   return (
@@ -68,6 +111,7 @@ export default function Toolbar() {
           key={i} 
           className={`toolbar-btn ${btn.className || ''}`} 
           onClick={btn.action}
+          title={btn.title}
         >
           {btn.label}
         </button>

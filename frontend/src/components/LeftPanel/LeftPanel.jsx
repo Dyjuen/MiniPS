@@ -6,7 +6,7 @@ import EdgeTab from './tabs/EdgeTab';
 import MoreTab from './tabs/MoreTab';
 
 export default function LeftPanel() {
-  const [activeTab, setActiveTab] = useState('Enhance');
+  const { activeTab, setActiveTab } = useAppState();
 
   const tabs = ['Enhance', 'Restore', 'Edge', 'More'];
 

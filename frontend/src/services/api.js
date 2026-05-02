@@ -24,6 +24,7 @@ export const applySmooth = (image, kernel_size) => postOp('/enhance/smooth', ima
 // Transform
 export const applyRotate = (image, angle, interpolation = 'bilinear') => postOp('/transform/rotate', image, { angle, interpolation });
 export const applyFlip = (image, direction) => postOp('/transform/flip', image, { direction });
+export const applyCrop = (image, x, y, width, height) => postOp('/transform/crop', image, { x, y, width, height });
 export const applyResize = (image, width, height, interpolation = 'bilinear') => postOp('/transform/resize', image, { width, height, interpolation });
 export const applyTranslate = (image, tx, ty) => postOp('/transform/translate', image, { tx, ty });
 

@@ -35,15 +35,20 @@ export default function ImageInfo() {
       <h4 className="section-title">Applied Operations</h4>
       <div className="ops-container">
         {appliedOps.length > 0 ? (
-          appliedOps.map((op, i) => (
-            <span 
-              key={i} 
-              className="op-badge"
-              style={{ backgroundColor: badgeColors[i % badgeColors.length] }}
-            >
-              {op}
-            </span>
-          ))
+          <>
+            {appliedOps.slice(0, 5).map((op, i) => (
+              <span 
+                key={i} 
+                className="op-badge"
+                style={{ backgroundColor: badgeColors[i % badgeColors.length] }}
+              >
+                {op}
+              </span>
+            ))}
+            {appliedOps.length > 5 && (
+              <span className="op-badge more">+{appliedOps.length - 5} more</span>
+            )}
+          </>
         ) : (
           <p className="no-data">No operations applied yet</p>
         )}

@@ -18,6 +18,17 @@ export function AppProvider({ children }) {
   const [activeTab, setActiveTab] = useState('Enhance');
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [toasts, setToasts] = useState([]);
+  const [cropRect, setCropRect] = useState(null);
+  const [selectedTool, setSelectedTool] = useState('move');
+
+  const addToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  };
 
   const handleLoadImage = (file) => {
     const reader = new FileReader();
@@ -35,6 +46,8 @@ export function AppProvider({ children }) {
         setImageMetadata({
           filename: file.name,
           resolution: `${img.width}x${img.height}`,
+          w: img.width,
+          h: img.height,
           format: file.type,
           fileSize: `${(file.size / 1024).toFixed(1)} KB`
         });
@@ -62,6 +75,11 @@ export function AppProvider({ children }) {
     pixelRgb, setPixelRgb,
     appliedOps, setAppliedOps,
     activeTab, setActiveTab,
+    history, setHistory,
+    historyIndex, setHistoryIndex,
+    toasts, addToast,
+    cropRect, setCropRect,
+    selectedTool, setSelectedTool,
     handleLoadImage,
     handleReset,
     handleZoom
