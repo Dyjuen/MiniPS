@@ -45,6 +45,16 @@ export default function Canvas() {
               alt="canvas" 
               style={{ width: `${zoomLevel}%`, transition: 'width 0.1s' }}
             />
+            {isLoading && (
+              <div className="canvas-overlay loading">
+                <div className="spinner"></div>
+              </div>
+            )}
+            {error && (
+              <div className="canvas-overlay error">
+                <p>{error}</p>
+              </div>
+            )}
           </div>
 
           <div className="canvas-controls">

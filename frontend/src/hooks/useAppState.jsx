@@ -16,6 +16,8 @@ export function AppProvider({ children }) {
   const [pixelRgb, setPixelRgb] = useState({ r: 0, g: 0, b: 0 });
   const [appliedOps, setAppliedOps] = useState([]);
   const [activeTab, setActiveTab] = useState('Enhance');
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   const handleLoadImage = (file) => {
     const reader = new FileReader();
@@ -25,6 +27,8 @@ export function AppProvider({ children }) {
       setOriginalImage(base64);
       setAppliedOps([]);
       setZoomLevel(100);
+      setHistory([base64]);
+      setHistoryIndex(0);
 
       const img = new Image();
       img.onload = () => {
