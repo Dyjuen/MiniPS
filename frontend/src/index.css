@@ -77,8 +77,153 @@ html, body, #root {
 .left-panel {
   width: 192px;
   border-right: var(--panel-border);
+  display: flex;
+  flex-direction: column;
+  background-color: #1E1E1C;
+  overflow: hidden;
+  padding: 0;
+}
+
+.tabs-header {
+  display: flex;
+  background-color: #252523;
+  border-bottom: var(--panel-border);
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #888;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: 0.75rem;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: #ccc;
+}
+
+.tab-btn.active {
+  color: #fff;
+  background-color: #1E1E1C;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #378ADD;
+}
+
+.tabs-content {
+  flex: 1;
   overflow-y: auto;
   padding: 10px;
+}
+
+.tab-content section {
+  margin-bottom: 20px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 15px;
+}
+
+.tab-content section:last-child {
+  border-bottom: none;
+}
+
+.tab-content h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.85rem;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.slider-control {
+  margin-bottom: 12px;
+}
+
+.slider-label-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+}
+
+.slider-control input[type="range"] {
+  width: 100%;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.btn-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.btn-group button, .btn-block {
+  background: #333;
+  border: 1px solid #444;
+  color: #eee;
+  padding: 5px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.btn-block {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.btn-group button:hover, .btn-block:hover {
+  background: #444;
+}
+
+.select-control {
+  margin-top: 10px;
+}
+
+.select-control label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.select-control select {
+  width: 100%;
+  background: #333;
+  border: 1px solid #444;
+  color: #eee;
+  font-size: 0.75rem;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+.small-text {
+  font-size: 0.7rem;
+  color: #888;
+  margin: 4px 0;
+}
+
+.result-area {
+  margin-top: 10px;
+  background: #151513;
+  padding: 8px;
+  font-size: 0.75rem;
+  color: #666;
+  border: 1px dashed #333;
+  min-height: 40px;
 }
 
 .canvas {
