@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useAppState } from '../../hooks/useAppState';
 import EnhanceTab from './tabs/EnhanceTab';
 import RestoreTab from './tabs/RestoreTab';
 import EdgeTab from './tabs/EdgeTab';

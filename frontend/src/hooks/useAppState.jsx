@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 const AppContext = createContext();
 
@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [pixelRgb, setPixelRgb] = useState({ r: 0, g: 0, b: 0 });
   const [appliedOps, setAppliedOps] = useState([]);
+  const [activeTab, setActiveTab] = useState('Enhance');
 
   const handleLoadImage = (file) => {
     const reader = new FileReader();
@@ -56,6 +57,7 @@ export function AppProvider({ children }) {
     cursorPos, setCursorPos,
     pixelRgb, setPixelRgb,
     appliedOps, setAppliedOps,
+    activeTab, setActiveTab,
     handleLoadImage,
     handleReset,
     handleZoom
