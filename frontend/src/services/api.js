@@ -28,10 +28,10 @@ export const applyCrop = (image, x, y, width, height) => postOp('/transform/crop
 export const applyResize = (image, width, height, interpolation = 'bilinear') => postOp('/transform/resize', image, { width, height, interpolation });
 export const applyTranslate = (image, tx, ty) => postOp('/transform/translate', image, { tx, ty });
 
-// Restoration
-export const applyGaussian = (image, kernel_size, sigma = 1.0) => postOp('/restore/gaussian', image, { kernel_size, sigma });
-export const applyMedian = (image, kernel_size) => postOp('/restore/median', image, { kernel_size });
-export const applyDenoise = (image, method = 'salt_pepper', intensity = 0.5) => postOp('/restore/denoise', image, { method, intensity });
+// Restoration — all sliders use unified percent (1-100)
+export const applyGaussian = (image, percent) => postOp('/restore/gaussian', image, { percent });
+export const applyMedian = (image, percent) => postOp('/restore/median', image, { percent });
+export const applyDenoise = (image, method = 'salt_pepper', percent = 50) => postOp('/restore/denoise', image, { method, percent });
 
 // Binary & Edge
 export const applyThreshold = (image, value, method = 'binary') => postOp('/binary/threshold', image, { value, method });

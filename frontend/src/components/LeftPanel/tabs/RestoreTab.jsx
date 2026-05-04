@@ -5,13 +5,17 @@ import * as api from '../../../services/api';
 
 export default function RestoreTab() {
   const { executeOp } = useApi();
-  const [gBlur, setGBlur] = useState(5);
-  const [mFilter, setMFilter] = useState(3);
-  const [noise, setNoise] = useState(0.5);
-  const [hue, setHue] = useState(0);
-  const [sat, setSat] = useState(0);
 
-  // Debounce hue/sat
+  // All restoration strengths use a 1–100% scale (like Photoshop).
+  // The backend maps percent → actual algorithm params internally.
+  const [gBlur, setGBlur]   = useState(50);
+  const [mFilter, setMFilter] = useState(50);
+  const [noise, setNoise]   = useState(50);
+
+  const [hue, setHue]   = useState(0);
+  const [sat, setSat]   = useState(0);
+
+  // Debounce hue/sat live preview
   useEffect(() => {
     if (hue === 0 && sat === 0) return;
     const timer = setTimeout(() => {
@@ -24,22 +28,57 @@ export default function RestoreTab() {
     <div className="tab-content">
       <section>
         <h4>Gaussian blur</h4>
-        <SliderControl label="Kernel size" min={3} max={15} step={2} value={gBlur} onChange={setGBlur} />
-        <button className="btn-block" onClick={() => executeOp('Gaussian Blur', api.applyGaussian, gBlur)}>Apply Gaussian</button>
+        <SliderControl
+          label="Blur strength"
+          min={1} max={100} step={1}
+          value={gBlur}
+          unit="%"
+          defaultValue={50}
+          onChange={setGBlur}
+        />
+        <button
+          className="btn-block"
+          onClick={() => executeOp('Gaussian Blur', api.applyGaussian, gBlur)}
+        >
+          Apply Gaussian
+        </button>
       </section>
 
       <section>
         <h4>Median filter</h4>
-        <SliderControl label="Kernel size" min={3} max={15} step={2} value={mFilter} onChange={setMFilter} />
-        <button className="btn-block" onClick={() => executeOp('Median Filter', api.applyMedian, mFilter)}>Apply Median</button>
+        <SliderControl
+          label="Filter strength"
+          min={1} max={100} step={1}
+          value={mFilter}
+          unit="%"
+          defaultValue={50}
+          onChange={setMFilter}
+        />
+        <button
+          className="btn-block"
+          onClick={() => executeOp('Median Filter', api.applyMedian, mFilter)}
+        >
+          Apply Median
+        </button>
       </section>
 
       <section>
         <h4>Noise reduction</h4>
-        <SliderControl label="Intensity" min={0.1} max={1.0} step={0.1} value={noise} onChange={setNoise} />
+        <SliderControl
+          label="Reduction strength"
+          min={1} max={100} step={1}
+          value={noise}
+          unit="%"
+          defaultValue={50}
+          onChange={setNoise}
+        />
         <div className="btn-group">
-          <button onClick={() => executeOp('Denoise (S&P)', api.applyDenoise, 'salt_pepper', noise)}>Remove S&P</button>
-          <button onClick={() => executeOp('Denoise', api.applyDenoise, 'generic', noise)}>Denoise</button>
+          <button onClick={() => executeOp('Denoise (S&P)', api.applyDenoise, 'salt_pepper', noise)}>
+            Remove S&P
+          </button>
+          <button onClick={() => executeOp('Denoise', api.applyDenoise, 'generic', noise)}>
+            Denoise
+          </button>
         </div>
       </section>
 

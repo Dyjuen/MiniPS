@@ -16,8 +16,7 @@ def gaussian():
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
     schema = {
-        'kernel_size': {'type': int, 'min': 3, 'max': 15, 'default': 5},
-        'sigma': {'type': float, 'min': 0.1, 'max': 5.0, 'default': 1.0}
+        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
     }
     is_valid, params, err = validate_schema(data.get('params', {}), schema)
     if not is_valid:
@@ -25,7 +24,7 @@ def gaussian():
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = gaussian_blur(img, params['kernel_size'], params['sigma'])
+        result = gaussian_blur(img, params['percent'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -42,7 +41,7 @@ def median():
         return jsonify({"success": False, "error": "No image data provided"}), 400
     
     schema = {
-        'kernel_size': {'type': int, 'min': 3, 'max': 15, 'default': 3}
+        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
     }
     is_valid, params, err = validate_schema(data.get('params', {}), schema)
     if not is_valid:
@@ -50,7 +49,7 @@ def median():
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = median_filter(img, params['kernel_size'])
+        result = median_filter(img, params['percent'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
@@ -68,7 +67,7 @@ def denoise():
     
     schema = {
         'method': {'type': str, 'allowed': ['salt_pepper', 'generic'], 'default': 'salt_pepper'},
-        'intensity': {'type': float, 'min': 0.1, 'max': 1.0, 'default': 0.5}
+        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
     }
     is_valid, params, err = validate_schema(data.get('params', {}), schema)
     if not is_valid:
@@ -76,7 +75,7 @@ def denoise():
     
     try:
         img = base64_to_ndarray(data['image'])
-        result = denoise_image(img, params['method'], params['intensity'])
+        result = denoise_image(img, params['method'], params['percent'])
         result_b64 = ndarray_to_base64(result)
         return jsonify({
             "success": True, 
