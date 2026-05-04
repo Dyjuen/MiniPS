@@ -21,6 +21,7 @@ export function AppProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [cropRect, setCropRect] = useState(null);
   const [selectedTool, setSelectedTool] = useState('move');
+  const [sessionBase, setSessionBase] = useState(null); // Added for parametric session tracking
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -40,6 +41,7 @@ export function AppProvider({ children }) {
       setZoomLevel(100);
       setHistory([base64]);
       setHistoryIndex(0);
+      setSessionBase(base64);
 
       const img = new Image();
       img.onload = () => {
@@ -79,7 +81,7 @@ export function AppProvider({ children }) {
     historyIndex, setHistoryIndex,
     toasts, addToast,
     cropRect, setCropRect,
-    selectedTool, setSelectedTool,
+    sessionBase, setSessionBase,
     handleLoadImage,
     handleReset,
     handleZoom
