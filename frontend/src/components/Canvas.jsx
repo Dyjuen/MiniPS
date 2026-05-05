@@ -120,8 +120,9 @@ export default function Canvas() {
                 alt="canvas" 
                 draggable="false"
                 style={{ 
-                  width: `${zoomLevel}%`, 
-                  transition: 'width 0.3s ease-in-out',
+                  width: `${(imageMetadata.w || 0) * (zoomLevel / 100)}px`,
+                  height: `${(imageMetadata.h || 0) * (zoomLevel / 100)}px`,
+                  transition: 'none',
                   display: 'block',
                   userSelect: 'none'
                 }}
