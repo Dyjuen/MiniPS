@@ -41,10 +41,14 @@ def create_app():
     from backend.routes.transform import router as transform_router
     from backend.routes.binary_edge import router as binary_router
     from backend.routes.color import router as color_router
+    from backend.routes.restoration import router as restoration_router
+    from backend.routes.compression import router as compression_router
     app.include_router(enhancement_router, prefix="/api/enhance")
     app.include_router(transform_router, prefix="/api/transform")
     app.include_router(binary_router, prefix="/api/binary")
     app.include_router(color_router, prefix="/api/color")
+    app.include_router(restoration_router, prefix="/api/restore")
+    app.include_router(compression_router, prefix="/api/compress")
     
     return app
 

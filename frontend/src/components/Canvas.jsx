@@ -94,6 +94,7 @@ export default function Canvas() {
         <>
           <div className="canvas-header">
             {imageMetadata.filename} — {imageMetadata.resolution} — {appliedOps[appliedOps.length - 1] || 'No filter'}
+            {isLoading && <span className="badge badge-proxy">PROXY MODE ACTIVE</span>}
           </div>
           
           <div 

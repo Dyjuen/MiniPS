@@ -1,86 +1,64 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header
+from fastapi.responses import Response
 from backend.processing.restore import (
     gaussian_blur, 
     median_filter, 
     denoise_image
 )
 
-restoration_bp = Blueprint('restoration', __name__)
+router = APIRouter()
 
-@restoration_bp.route('/gaussian', methods=['POST'])
-def gaussian():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = gaussian_blur(img, params['percent'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@restoration_bp.route('/median', methods=['POST'])
-def median():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = median_filter(img, params['percent'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
 
-@restoration_bp.route('/denoise', methods=['POST'])
-def denoise():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'method': {'type': str, 'allowed': ['salt_pepper', 'generic'], 'default': 'salt_pepper'},
-        'percent': {'type': int, 'min': 1, 'max': 100, 'default': 50},
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = denoise_image(img, params['method'], params['percent'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+@router.post("/gaussian")
+async def gaussian(
+    request: Request,
+    x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        gaussian_blur,
+        img, x_minips_percent
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/median")
+async def median(
+    request: Request,
+    x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        median_filter,
+        img, x_minips_percent
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/denoise")
+async def denoise(
+    request: Request,
+    x_minips_method: str = Header("salt_pepper", alias="X-MiniPS-Method"),
+    x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        denoise_image,
+        img, x_minips_method, x_minips_percent
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

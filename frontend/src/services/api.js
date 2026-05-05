@@ -64,6 +64,23 @@ export const applyResize = (blob, width, height, interpolation = 'bilinear') =>
     'X-MiniPS-Interpolation': interpolation
   });
 
+// Restoration — all sliders use unified percent (1-100)
+export const applyGaussian = (blob, percent) => 
+  postBinaryOp('/restore/gaussian', blob, {
+    'X-MiniPS-Percent': percent.toString()
+  });
+
+export const applyMedian = (blob, percent) => 
+  postBinaryOp('/restore/median', blob, {
+    'X-MiniPS-Percent': percent.toString()
+  });
+
+export const applyDenoise = (blob, method = 'salt_pepper', percent = 50) => 
+  postBinaryOp('/restore/denoise', blob, {
+    'X-MiniPS-Method': method,
+    'X-MiniPS-Percent': percent.toString()
+  });
+
 // Binary & Edge
 export const applyThreshold = (blob, value, method = 'binary') => 
   postBinaryOp('/binary/threshold', blob, {
@@ -94,4 +111,15 @@ export const applyColorAdjust = (blob, hue, saturation) =>
   postBinaryOp('/color/adjust', blob, {
     'X-MiniPS-Hue': hue.toString(),
     'X-MiniPS-Saturation': saturation.toString()
+  });
+
+// Compression
+export const applyJpegSim = (blob, quality) => 
+  postBinaryOp('/compress/jpeg', blob, {
+    'X-MiniPS-Quality': quality.toString()
+  });
+
+export const applyEncode = (blob, method) => 
+  postBinaryOp('/compress/encode', blob, {
+    'X-MiniPS-Method': method
   });

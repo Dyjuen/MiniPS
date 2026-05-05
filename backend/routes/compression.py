@@ -1,59 +1,57 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header, Response
+from fastapi.responses import JSONResponse
 from backend.processing.compress import compress_jpeg_sim, encode_image
 
-compression_bp = Blueprint('compression', __name__)
+router = APIRouter()
 
-@compression_bp.route('/jpeg', methods=['POST'])
-def jpeg_sim():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'quality': {'type': int, 'min': 1, 'max': 100, 'default': 50}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = compress_jpeg_sim(img, params['quality'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@compression_bp.route('/encode', methods=['POST'])
-def encode():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
+
+@router.post("/jpeg")
+async def jpeg_sim(
+    request: Request,
+    x_minips_quality: int = Header(85, alias="X-MiniPS-Quality")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        compress_jpeg_sim,
+        img, x_minips_quality
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/encode")
+async def encode(
+    request: Request,
+    x_minips_method: str = Header("huffman", alias="X-MiniPS-Method")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
     
-    schema = {
-        'method': {'type': str, 'allowed': ['huffman', 'rle', 'lzw', 'arithmetic', 'quantization'], 'default': 'huffman'},
-        'bits': {'type': int, 'min': 1, 'max': 8, 'default': 4}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
+    # encode_image returns (img, o_size, c_size, ratio)
+    res_img, o_size, c_size, ratio = await loop.run_in_executor(
+        request.app.state.executor,
+        encode_image,
+        img, x_minips_method, {}
+    )
     
-    try:
-        img = base64_to_ndarray(data['image'])
-        res_img, o_size, c_size, ratio = encode_image(img, params['method'], params)
-        res_b64 = ndarray_to_base64(res_img)
-        return jsonify({
-            "success": True, 
-            "image": res_b64,
-            "original_size": o_size,
-            "compressed_size": c_size,
-            "ratio": ratio
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    # Encode returns both metadata and image. We use multipart or just return image bytes with headers.
+    # For speed, return image bytes and ratio in headers.
+    return Response(
+        content=ndarray_to_jpeg_bytes(res_img), 
+        media_type="image/jpeg",
+        headers={
+            "X-MiniPS-Ratio": str(ratio),
+            "X-MiniPS-Compressed-Size": str(c_size)
+        }
+    )

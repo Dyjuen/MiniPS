@@ -5,108 +5,63 @@ import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
 
 export default function RestoreTab() {
-  const { currentImage, setCurrentImage, addToast, sessionBase, setSessionBase } = useAppState();
-  const { executeOp, previewOp, applyTabOps, isLoading } = useApi();
+  const { proxyBlob, fullResBlob, setFullResBlob, setProxyBlob, addToast } = useAppState();
+  const { executeOp, previewOp, isLoading } = useApi();
 
   const [gBlur, setGBlur] = useState(50);
   const [mFilter, setMFilter] = useState(50);
   const [noise, setNoise] = useState(50);
-  const [method, setMethod] = useState('salt_pepper');
+  const [noiseMethod, setNoiseMethod] = useState('salt_pepper');
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(0);
 
-  const isApplied = useRef(false);
-  const isMounted = useRef(false);
-  
-  const blurTouched = useRef(false);
-  const medianTouched = useRef(false);
-  const noiseTouched = useRef(false);
+  // Live Previews (No Debounce)
+  useEffect(() => {
+    if (!proxyBlob) return;
+    if (gBlur !== 50) previewOp(proxyBlob, api.applyGaussian, gBlur);
+  }, [gBlur, proxyBlob]);
 
   useEffect(() => {
-    if (currentImage && !sessionBase) {
-      console.log('RestoreTab: captured global sessionBase');
-      setSessionBase(currentImage);
-    }
-    isMounted.current = true;
-  }, [currentImage, sessionBase]);
-
-  // Debounce previews
-  useEffect(() => {
-    if (!isMounted.current || !sessionBase) return;
-    const timer = setTimeout(() => {
-      if (blurTouched.current) {
-        previewOp(sessionBase, api.applyGaussian, gBlur);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [gBlur, sessionBase]);
+    if (!proxyBlob) return;
+    if (mFilter !== 50) previewOp(proxyBlob, api.applyMedian, mFilter);
+  }, [mFilter, proxyBlob]);
 
   useEffect(() => {
-    if (!isMounted.current || !sessionBase) return;
-    const timer = setTimeout(() => {
-      if (medianTouched.current) {
-        previewOp(sessionBase, api.applyMedian, mFilter);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [mFilter, sessionBase]);
+    if (!proxyBlob) return;
+    if (noise !== 50) previewOp(proxyBlob, api.applyDenoise, noiseMethod, noise);
+  }, [noise, noiseMethod, proxyBlob]);
 
   useEffect(() => {
-    if (!isMounted.current || !sessionBase) return;
-    const timer = setTimeout(() => {
-      if (noiseTouched.current) {
-        previewOp(sessionBase, api.applyDenoise, method, noise);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [noise, method, sessionBase]);
+    if (!proxyBlob) return;
+    if (hue !== 0 || sat !== 0) previewOp(proxyBlob, api.applyColorAdjust, hue, sat);
+  }, [hue, sat, proxyBlob]);
 
-  useEffect(() => {
-    if (!isMounted.current || !sessionBase) return;
-    const timer = setTimeout(() => {
-      if (hue !== 0 || sat !== 0) {
-        previewOp(sessionBase, api.applyColorAdjust, hue, sat);
-      } else if (isMounted.current) {
-        setCurrentImage(sessionBase);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [hue, sat, sessionBase]);
+  const updateBlobs = (newFullResBlob) => {
+    setFullResBlob(newFullResBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
+    };
+    img.src = URL.createObjectURL(newFullResBlob);
+  };
 
   const handleApply = async () => {
-    const ops = [];
-    if (blurTouched.current) {
-      ops.push({ name: 'Gaussian Blur', fn: api.applyGaussian, args: [gBlur] });
-    }
-    if (medianTouched.current) {
-      ops.push({ name: 'Median Filter', fn: api.applyMedian, args: [mFilter] });
-    }
-    if (noiseTouched.current) {
-      ops.push({ name: 'Denoise', fn: api.applyDenoise, args: [method, noise] });
-    }
-    if (hue !== 0 || sat !== 0) {
-      ops.push({ name: 'Color Adjust', fn: api.applyColorAdjust, args: [hue, sat] });
-    }
+    if (!fullResBlob) return;
+    let result = fullResBlob;
+    if (gBlur !== 50) result = await executeOp('Gaussian Blur', api.applyGaussian, result, gBlur);
+    if (mFilter !== 50) result = await executeOp('Median Filter', api.applyMedian, result, mFilter);
+    if (noise !== 50) result = await executeOp('Denoise', api.applyDenoise, result, noiseMethod, noise);
+    if (hue !== 0 || sat !== 0) result = await executeOp('Color Adjust', api.applyColorAdjust, result, hue, sat);
 
-    if (ops.length === 0) {
-      addToast('No changes to apply', 'info');
-      return;
-    }
-
-    const result = await applyTabOps(sessionBase, ops);
     if (result) {
-      setSessionBase(result);
-      isApplied.current = true;
-      // Reset touched flags and states
-      blurTouched.current = false;
-      medianTouched.current = false;
-      noiseTouched.current = false;
-      setGBlur(50);
-      setMFilter(50);
-      setNoise(50);
-      setHue(0);
-      setSat(0);
-      isApplied.current = false;
+      updateBlobs(result);
+      setGBlur(50); setMFilter(50); setNoise(50); setHue(0); setSat(0);
+      addToast('Applied to full resolution', 'success');
     }
   };
 
@@ -114,41 +69,20 @@ export default function RestoreTab() {
     <div className="tab-content">
       <section>
         <h4>Gaussian blur</h4>
-        <SliderControl
-          label="Blur strength"
-          min={1} max={100} step={1}
-          value={gBlur}
-          unit="%"
-          defaultValue={50}
-          onChange={(v) => { setGBlur(v); blurTouched.current = true; }}
-        />
+        <SliderControl label="Blur strength" min={1} max={100} value={gBlur} unit="%" onChange={setGBlur} />
       </section>
 
       <section>
         <h4>Median filter</h4>
-        <SliderControl
-          label="Filter strength"
-          min={1} max={100} step={1}
-          value={mFilter}
-          unit="%"
-          defaultValue={50}
-          onChange={(v) => { setMFilter(v); medianTouched.current = true; }}
-        />
+        <SliderControl label="Filter strength" min={1} max={100} value={mFilter} unit="%" onChange={setMFilter} />
       </section>
 
       <section>
         <h4>Noise reduction</h4>
-        <SliderControl
-          label="Reduction strength"
-          min={1} max={100} step={1}
-          value={noise}
-          unit="%"
-          defaultValue={50}
-          onChange={(v) => { setNoise(v); noiseTouched.current = true; }}
-        />
+        <SliderControl label="Reduction strength" min={1} max={100} value={noise} unit="%" onChange={setNoise} />
         <div className="select-control">
           <label>Method</label>
-          <select value={method} onChange={(e) => { setMethod(e.target.value); noiseTouched.current = true; }}>
+          <select value={noiseMethod} onChange={(e) => setNoiseMethod(e.target.value)}>
             <option value="salt_pepper">Salt & Pepper</option>
             <option value="generic">Generic</option>
           </select>
@@ -158,23 +92,16 @@ export default function RestoreTab() {
       <section>
         <h4>Color processing</h4>
         <div className="btn-group">
-          <button onClick={() => executeOp('Grayscale', api.applyGrayscale)}>Grayscale</button>
-          <button onClick={() => executeOp('Split R', api.applyChannelSplit, 'R')}>Split R</button>
+          <button onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) updateBlobs(res); }}>Grayscale</button>
+          <button onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) updateBlobs(res); }}>Split R</button>
         </div>
         <SliderControl label="Hue" min={-180} max={180} value={hue} unit="°" onChange={setHue} />
         <SliderControl label="Saturation" min={-100} max={100} value={sat} onChange={setSat} />
       </section>
 
       <section className="apply-section">
-        <button 
-          className="btn-block btn-primary" 
-          onClick={handleApply}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Applying...' : 'Apply All Changes'}
-        </button>
+        <button className="btn-block btn-primary" onClick={handleApply} disabled={isLoading}>Apply to Full Res</button>
       </section>
     </div>
   );
 }
-
