@@ -1,75 +1,57 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header
+from fastapi.responses import Response
 from backend.processing.color import to_grayscale, split_channels, adjust_color
 
-color_bp = Blueprint('color', __name__)
+router = APIRouter()
 
-@color_bp.route('/grayscale', methods=['POST'])
-def grayscale():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = to_grayscale(img)
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@color_bp.route('/channel-split', methods=['POST'])
-def channel_split():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'channel': {'type': str, 'allowed': ['R', 'G', 'B'], 'required': True}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = split_channels(img, params['channel'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
 
-@color_bp.route('/adjust', methods=['POST'])
-def adjust():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'hue': {'type': int, 'min': -180, 'max': 180, 'default': 0},
-        'saturation': {'type': int, 'min': -100, 'max': 100, 'default': 0}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = adjust_color(img, params['hue'], params['saturation'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+@router.post("/grayscale")
+async def grayscale(request: Request):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        to_grayscale,
+        img
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/channel-split")
+async def channel_split(
+    request: Request,
+    x_minips_channel: str = Header("R", alias="X-MiniPS-Channel")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        split_channels,
+        img, x_minips_channel
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/adjust")
+async def adjust(
+    request: Request,
+    x_minips_hue: int = Header(0, alias="X-MiniPS-Hue"),
+    x_minips_saturation: int = Header(0, alias="X-MiniPS-Saturation")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        adjust_color,
+        img, x_minips_hue, x_minips_saturation
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

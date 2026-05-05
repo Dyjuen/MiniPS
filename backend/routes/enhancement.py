@@ -1,6 +1,8 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Response, Header
+from fastapi.responses import Response
 from backend.processing.enhance import (
     adjust_brightness_contrast, 
     histogram_equalization, 
@@ -8,98 +10,70 @@ from backend.processing.enhance import (
     smooth_image
 )
 
-enhancement_bp = Blueprint('enhancement', __name__)
+router = APIRouter()
 
-@enhancement_bp.route('/brightness', methods=['POST'])
-def brightness():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'brightness': {'type': int, 'min': -100, 'max': 100, 'default': 0},
-        'contrast': {'type': int, 'min': -100, 'max': 100, 'default': 0}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = adjust_brightness_contrast(img, params['brightness'], params['contrast'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@enhancement_bp.route('/histogram-eq', methods=['POST'])
-def histogram_eq():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = histogram_equalization(img)
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
 
-@enhancement_bp.route('/sharpen', methods=['POST'])
-def sharpen():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
+@router.post("/brightness")
+async def brightness(
+    request: Request,
+    x_minips_brightness: int = Header(0, alias="X-MiniPS-Brightness"),
+    x_minips_contrast: int = Header(0, alias="X-MiniPS-Contrast")
+):
+    img = await get_image_from_body(request)
     
-    schema = {
-        'intensity': {'type': int, 'min': 1, 'max': 5, 'default': 1}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
+    # Run in process pool to bypass GIL
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor, 
+        adjust_brightness_contrast, 
+        img, x_minips_brightness, x_minips_contrast
+    )
     
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = sharpen_image(img, params['intensity'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 
-@enhancement_bp.route('/smooth', methods=['POST'])
-def smooth():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'kernel_size': {'type': int, 'min': 3, 'max': 15, 'default': 3}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = smooth_image(img, params['kernel_size'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+@router.post("/histogram-eq")
+async def histogram_eq(request: Request):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        histogram_equalization,
+        img
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/sharpen")
+async def sharpen(
+    request: Request,
+    x_minips_intensity: int = Header(1, alias="X-MiniPS-Intensity")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        sharpen_image,
+        img, x_minips_intensity
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/smooth")
+async def smooth(
+    request: Request,
+    x_minips_kernel: int = Header(3, alias="X-MiniPS-Kernel")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        smooth_image,
+        img, x_minips_kernel
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

@@ -31,36 +31,46 @@ export function AppProvider({ children }) {
     }, 3000);
   };
 
-  const handleLoadImage = (file) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target.result;
-      setCurrentImage(base64);
-      setOriginalImage(base64);
-      setAppliedOps([]);
-      setZoomLevel(100);
-      setHistory([base64]);
-      setHistoryIndex(0);
-      setSessionBase(base64);
+  const [proxyBlob, setProxyBlob] = useState(null);
+  const [fullResBlob, setFullResBlob] = useState(null);
 
-      const img = new Image();
-      img.onload = () => {
-        setImageMetadata({
-          filename: file.name,
-          resolution: `${img.width}x${img.height}`,
-          w: img.width,
-          h: img.height,
-          format: file.type,
-          fileSize: `${(file.size / 1024).toFixed(1)} KB`
-        });
-      };
-      img.src = base64;
+  const handleLoadImage = (file) => {
+    const url = URL.createObjectURL(file);
+    setCurrentImage(url);
+    setFullResBlob(file);
+    setAppliedOps([]);
+    setZoomLevel(100);
+    setHistory([url]);
+    setHistoryIndex(0);
+
+    const img = new Image();
+    img.onload = () => {
+      setImageMetadata({
+        filename: file.name,
+        resolution: `${img.width}x${img.height}`,
+        w: img.width,
+        h: img.height,
+        format: file.type,
+        fileSize: `${(file.size / 1024).toFixed(1)} KB`
+      });
+
+      // Create 1024px proxy
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
     };
-    reader.readAsDataURL(file);
+    img.src = url;
   };
 
   const handleReset = () => {
-    setCurrentImage(originalImage);
+    if (fullResBlob) {
+      const url = URL.createObjectURL(fullResBlob);
+      setCurrentImage(url);
+    }
     setAppliedOps([]);
   };
 
@@ -70,18 +80,10 @@ export function AppProvider({ children }) {
 
   const value = {
     currentImage, setCurrentImage,
+    proxyBlob, setProxyBlob,
+    fullResBlob, setFullResBlob,
     originalImage, setOriginalImage,
-    imageMetadata, setImageMetadata,
-    zoomLevel, setZoomLevel,
-    cursorPos, setCursorPos,
-    pixelRgb, setPixelRgb,
-    appliedOps, setAppliedOps,
-    activeTab, setActiveTab,
-    history, setHistory,
-    historyIndex, setHistoryIndex,
-    toasts, addToast,
-    cropRect, setCropRect,
-    sessionBase, setSessionBase,
+...
     handleLoadImage,
     handleReset,
     handleZoom

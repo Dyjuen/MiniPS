@@ -1,61 +1,97 @@
-import axios from 'axios';
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const postBinaryOp = async (endpoint, blob, headers = {}) => {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    body: blob,
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...headers
+    }
+  });
 
-const postOp = async (endpoint, image, params = {}) => {
-  const response = await api.post(endpoint, { image, params });
-  if (!response.data.success) throw new Error(response.data.error || 'API Error');
-  return response.data;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `HTTP Error ${response.status}`);
+  }
+
+  return await response.blob();
 };
 
 // Enhancement
-export const applyBrightness = (image, brightness, contrast) => postOp('/enhance/brightness', image, { brightness, contrast });
-export const applyHistogramEq = (image) => postOp('/enhance/histogram-eq', image);
-export const applySharpen = (image, intensity) => postOp('/enhance/sharpen', image, { intensity });
-export const applySmooth = (image, kernel_size) => postOp('/enhance/smooth', image, { kernel_size });
+export const applyBrightness = (blob, brightness, contrast) => 
+  postBinaryOp('/enhance/brightness', blob, {
+    'X-MiniPS-Brightness': brightness.toString(),
+    'X-MiniPS-Contrast': contrast.toString()
+  });
+
+export const applyHistogramEq = (blob) => postBinaryOp('/enhance/histogram-eq', blob);
+
+export const applySharpen = (blob, intensity) => 
+  postBinaryOp('/enhance/sharpen', blob, {
+    'X-MiniPS-Intensity': intensity.toString()
+  });
+
+export const applySmooth = (blob, kernel_size) => 
+  postBinaryOp('/enhance/smooth', blob, {
+    'X-MiniPS-Kernel': kernel_size.toString()
+  });
 
 // Transform
-export const applyRotate = (image, angle, interpolation = 'bilinear') => postOp('/transform/rotate', image, { angle, interpolation });
-export const applyFlip = (image, direction) => postOp('/transform/flip', image, { direction });
-export const applyCrop = (image, x, y, width, height) => postOp('/transform/crop', image, { x, y, width, height });
-export const applyResize = (image, width, height, interpolation = 'bilinear') => postOp('/transform/resize', image, { width, height, interpolation });
-export const applyTranslate = (image, tx, ty) => postOp('/transform/translate', image, { tx, ty });
+export const applyRotate = (blob, angle, interpolation = 'bilinear') => 
+  postBinaryOp('/transform/rotate', blob, {
+    'X-MiniPS-Angle': angle.toString(),
+    'X-MiniPS-Interpolation': interpolation
+  });
 
-// Restoration — all sliders use unified percent (1-100)
-export const applyGaussian = (image, percent) => postOp('/restore/gaussian', image, { percent });
-export const applyMedian = (image, percent) => postOp('/restore/median', image, { percent });
-export const applyDenoise = (image, method = 'salt_pepper', percent = 50) => postOp('/restore/denoise', image, { method, percent });
+export const applyFlip = (blob, direction) => 
+  postBinaryOp('/transform/flip', blob, {
+    'X-MiniPS-Direction': direction
+  });
+
+export const applyCrop = (blob, x, y, width, height) => 
+  postBinaryOp('/transform/crop', blob, {
+    'X-MiniPS-X': x.toString(),
+    'X-MiniPS-Y': y.toString(),
+    'X-MiniPS-Width': width.toString(),
+    'X-MiniPS-Height': height.toString()
+  });
+
+export const applyResize = (blob, width, height, interpolation = 'bilinear') => 
+  postBinaryOp('/transform/resize', blob, {
+    'X-MiniPS-Width': width.toString(),
+    'X-MiniPS-Height': height.toString(),
+    'X-MiniPS-Interpolation': interpolation
+  });
 
 // Binary & Edge
-export const applyThreshold = (image, value, method = 'binary') => postOp('/binary/threshold', image, { value, method });
-export const applyEdge = (image, method = 'canny') => postOp('/binary/edge', image, { method });
-export const applyMorphology = (image, operation, kernel_size) => postOp('/binary/morphology', image, { operation, kernel_size });
+export const applyThreshold = (blob, value, method = 'binary') => 
+  postBinaryOp('/binary/threshold', blob, {
+    'X-MiniPS-Threshold-Value': value.toString(),
+    'X-MiniPS-Threshold-Method': method
+  });
+
+export const applyEdge = (blob, method = 'canny') => 
+  postBinaryOp('/binary/edge', blob, {
+    'X-MiniPS-Edge-Method': method
+  });
+
+export const applyMorphology = (blob, operation, kernel_size) => 
+  postBinaryOp('/binary/morphology', blob, {
+    'X-MiniPS-Morph-Op': operation,
+    'X-MiniPS-Morph-Kernel': kernel_size.toString()
+  });
 
 // Color
-export const applyGrayscale = (image) => postOp('/color/grayscale', image);
-export const applyChannelSplit = (image, channel) => postOp('/color/channel-split', image, { channel });
-export const applyColorAdjust = (image, hue, saturation) => postOp('/color/adjust', image, { hue, saturation });
+export const applyGrayscale = (blob) => postBinaryOp('/color/grayscale', blob);
 
-// Segmentation
-export const applySegThreshold = (image, value) => postOp('/segment/threshold', image, { value });
-export const applySegEdge = (image, method = 'canny') => postOp('/segment/edge', image, { method });
-export const applySegRegion = (image, seed_x, seed_y, tolerance = 10) => postOp('/segment/region', image, { seed_x, seed_y, tolerance });
+export const applyChannelSplit = (blob, channel) => 
+  postBinaryOp('/color/channel-split', blob, {
+    'X-MiniPS-Channel': channel
+  });
 
-// Compression
-export const applyJpegSim = (image, quality) => postOp('/compress/jpeg', image, { quality });
-export const applyEncode = (image, method, bits = 4) => postOp('/compress/encode', image, { method, bits });
-
-// Histogram Data
-export const getHistogramData = (image) => postOp('/histogram/generate', image);
-
-// ML
-export const runDetection = (image, type, confidence) => postOp('/ml/detect', image, { type, confidence });
-
-export default api;
+export const applyColorAdjust = (blob, hue, saturation) => 
+  postBinaryOp('/color/adjust', blob, {
+    'X-MiniPS-Hue': hue.toString(),
+    'X-MiniPS-Saturation': saturation.toString()
+  });

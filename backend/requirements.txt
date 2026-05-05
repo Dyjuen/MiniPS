@@ -1,5 +1,5 @@
-flask
-flask-cors
+fastapi
+uvicorn[standard]
 opencv-python-headless
 pillow
 numpy
@@ -9,3 +9,4 @@ imagecodecs
 matplotlib
 ultralytics
 pytest
+httpx

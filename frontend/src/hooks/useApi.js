@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAppState } from './useAppState';
 import * as api from '../services/api';
 
 export function useApi() {
   const { 
-    currentImage, 
     setCurrentImage, 
     appliedOps, 
     setAppliedOps,
@@ -18,105 +17,81 @@ export function useApi() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const executeOp = useCallback(async (opName, apiFn, ...args) => {
-    if (!currentImage) {
-      addToast('Please load an image first', 'error');
+  // High performance flow control
+  const activeRequest = useRef(null);
+  const nextRequest = useRef(null);
+  const abortController = useRef(null);
+
+  const executeOp = useCallback(async (opName, apiFn, baseBlob, ...args) => {
+    if (!baseBlob) {
+      addToast('No image data', 'error');
       return;
     }
+
+    // Cancel in-flight
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    abortController.current = new AbortController();
+
     setIsLoading(true);
     setError(null);
+
     try {
-      const data = await apiFn(currentImage, ...args);
-      let newImage = data.image;
+      const resultBlob = await apiFn(baseBlob, ...args);
+      const newImageUrl = URL.createObjectURL(resultBlob);
       
-      if (newImage && !newImage.startsWith('data:')) {
-        newImage = `data:image/png;base64,${newImage}`;
-      }
-      
-      setCurrentImage(newImage);
+      setCurrentImage(newImageUrl);
       setAppliedOps([...appliedOps, opName]);
       
-      // Update history
       const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newImage);
+      newHistory.push(newImageUrl);
       if (newHistory.length > 11) newHistory.shift();
       setHistory(newHistory);
       setHistoryIndex(newHistory.length - 1);
 
-      return data;
+      return resultBlob;
     } catch (err) {
+      if (err.name === 'AbortError') return;
       console.error(`Error applying ${opName}:`, err);
-      const msg = err.response?.data?.error || err.message;
-      setError(msg);
-      addToast(`Operation failed: ${msg}`, 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentImage, appliedOps, history, historyIndex, setCurrentImage, setAppliedOps, setHistory, setHistoryIndex, addToast]);
-
-  const previewOp = useCallback(async (baseImage, apiFn, ...args) => {
-    console.log('previewOp called', { hasBaseImage: !!baseImage, apiFnName: apiFn?.name, args });
-    if (!baseImage) {
-      console.warn('previewOp: baseImage is null');
-      return;
-    }
-    try {
-      const data = await apiFn(baseImage, ...args);
-      let newImage = data.image;
-      if (newImage && !newImage.startsWith('data:')) {
-        newImage = `data:image/png;base64,${newImage}`;
-      }
-      setCurrentImage(newImage);
-      return data;
-    } catch (err) {
-      console.error('Preview failed:', err);
-      const msg = err.response?.data?.error || err.message;
-      addToast(`Preview failed: ${msg}`, 'error');
-    }
-  }, [setCurrentImage, addToast]);
-
-  const applyTabOps = useCallback(async (baseImage, ops) => {
-    console.log('applyTabOps called', { hasBaseImage: !!baseImage, numOps: ops?.length });
-    if (!baseImage || ops.length === 0) return null;
-    setIsLoading(true);
-    setError(null);
-    try {
-      let currentBase = baseImage;
-      const opNames = [];
-      
-      for (const op of ops) {
-        console.log('Applying op in batch:', op.name);
-        const data = await op.fn(currentBase, ...op.args);
-        let newImage = data.image;
-        if (newImage && !newImage.startsWith('data:')) {
-          newImage = `data:image/png;base64,${newImage}`;
-        }
-        currentBase = newImage;
-        opNames.push(op.name);
-      }
-      
-      setCurrentImage(currentBase);
-      const batchName = opNames.join(' + ');
-      setAppliedOps([...appliedOps, batchName]);
-      
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(currentBase);
-      if (newHistory.length > 11) newHistory.shift();
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-      
-      addToast(`Applied: ${batchName}`, 'success');
-      return currentBase;
-    } catch (err) {
-      console.error('Batch apply failed:', err);
-      const msg = err.response?.data?.error || err.message;
-      setError(msg);
-      addToast(`Apply failed: ${msg}`, 'error');
-      return null;
+      setError(err.message);
+      addToast(`Operation failed: ${err.message}`, 'error');
     } finally {
       setIsLoading(false);
     }
   }, [appliedOps, history, historyIndex, setCurrentImage, setAppliedOps, setHistory, setHistoryIndex, addToast]);
 
-  return { executeOp, previewOp, applyTabOps, isLoading, error };
+  const previewOp = useCallback(async (baseBlob, apiFn, ...args) => {
+    if (!baseBlob) return;
+
+    // Implementation of One-In-Flight lock
+    if (activeRequest.current) {
+      // Buffer latest move
+      nextRequest.current = { apiFn, args };
+      return;
+    }
+
+    const run = async (blob, fn, fnArgs) => {
+      activeRequest.current = true;
+      try {
+        const resultBlob = await fn(blob, ...fnArgs);
+        const newImageUrl = URL.createObjectURL(resultBlob);
+        setCurrentImage(newImageUrl);
+      } catch (err) {
+        console.error('Preview failed:', err);
+      } finally {
+        activeRequest.current = false;
+        // Process next buffered request if any
+        if (nextRequest.current) {
+          const { apiFn: nextFn, args: nextArgs } = nextRequest.current;
+          nextRequest.current = null;
+          run(blob, nextFn, nextArgs);
+        }
+      }
+    };
+
+    run(baseBlob, apiFn, args);
+  }, [setCurrentImage]);
+
+  return { executeOp, previewOp, isLoading, error };
 }

@@ -1,83 +1,61 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header
+from fastapi.responses import Response
 from backend.processing.binary_edge import apply_threshold, detect_edges, apply_morphology
 
-binary_edge_bp = Blueprint('binary_edge', __name__)
+router = APIRouter()
 
-@binary_edge_bp.route('/threshold', methods=['POST'])
-def threshold():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'value': {'type': int, 'min': 0, 'max': 255, 'default': 127},
-        'method': {'type': str, 'allowed': ['binary', 'otsu'], 'default': 'binary'}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = apply_threshold(img, params['value'], params['method'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@binary_edge_bp.route('/edge', methods=['POST'])
-def edge():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'method': {'type': str, 'allowed': ['canny', 'sobel', 'prewitt', 'roberts', 'laplacian', 'log'], 'default': 'canny'}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = detect_edges(img, params['method'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
 
-@binary_edge_bp.route('/morphology', methods=['POST'])
-def morphology():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'operation': {'type': str, 'allowed': ['erosion', 'dilation'], 'default': 'erosion'},
-        'kernel_size': {'type': int, 'min': 3, 'max': 15, 'default': 3}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = apply_morphology(img, params['operation'], params['kernel_size'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+@router.post("/threshold")
+async def threshold(
+    request: Request,
+    x_minips_value: int = Header(127, alias="X-MiniPS-Threshold-Value"),
+    x_minips_method: str = Header("binary", alias="X-MiniPS-Threshold-Method")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        apply_threshold,
+        img, x_minips_value, x_minips_method
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/edge")
+async def edge(
+    request: Request,
+    x_minips_method: str = Header("canny", alias="X-MiniPS-Edge-Method")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        detect_edges,
+        img, x_minips_method
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/morphology")
+async def morphology(
+    request: Request,
+    x_minips_operation: str = Header("erosion", alias="X-MiniPS-Morph-Op"),
+    x_minips_kernel: int = Header(3, alias="X-MiniPS-Morph-Kernel")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        apply_morphology,
+        img, x_minips_operation, x_minips_kernel
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
