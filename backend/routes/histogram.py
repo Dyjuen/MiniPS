@@ -1,29 +1,36 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header, Response
 from backend.processing.histogram import get_histogram_chart
 
-histogram_bp = Blueprint('histogram', __name__)
+router = APIRouter()
 
-@histogram_bp.route('/analyze', methods=['POST'])
-def analyze():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+
+@router.post("/analyze")
+async def analyze(
+    request: Request,
+    x_minips_mode: str = Header("grayscale", alias="X-MiniPS-Histogram-Mode")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
     
-    schema = {
-        'mode': {'type': str, 'allowed': ['grayscale', 'rgb'], 'default': 'grayscale'}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
+    # get_histogram_chart returns base64 string currently.
+    # We should probably change it to return raw bytes if we want full binary.
+    # For now, keeping as is but offloading to process pool.
+    chart_b64 = await loop.run_in_executor(
+        request.app.state.executor,
+        get_histogram_chart,
+        img, x_minips_mode
+    )
     
-    try:
-        img = base64_to_ndarray(data['image'])
-        chart_b64 = get_histogram_chart(img, params['mode'])
-        return jsonify({
-            "success": True, 
-            "image": chart_b64
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    # Histogram chart is a UI element (plot), keeping as base64 for easy <img> src injection 
+    # or returning as PNG bytes.
+    # Let's return as PNG bytes for consistency.
+    import base64
+    chart_bytes = base64.b64decode(chart_b64)
+    return Response(content=chart_bytes, media_type="image/png")

@@ -19,6 +19,7 @@ export default function EdgeTab() {
   const [threshold, setThreshold] = useState(128);
   const [edgeMethod, setEdgeMethod] = useState('canny');
   const [morphKernel, setMorphKernel] = useState(3);
+  const [segMethod, setSegMethod] = useState('threshold');
 
   useEffect(() => {
     setThreshold(128);
@@ -32,12 +33,6 @@ export default function EdgeTab() {
     previewOp(proxyBlob, api.applyThreshold, threshold);
   }, [threshold, proxyBlob]);
 
-  const handleApplyThreshold = async () => {
-    if (!fullResBlob) return;
-    const result = await executeOp('Threshold', api.applyThreshold, fullResBlob, threshold);
-    if (result) updateBlobs(result);
-  };
-
   const updateBlobs = (newFullResBlob) => {
     setFullResBlob(newFullResBlob);
     const img = new Image();
@@ -50,6 +45,20 @@ export default function EdgeTab() {
       canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
     };
     img.src = URL.createObjectURL(newFullResBlob);
+  };
+
+  const handleApplyThreshold = async () => {
+    if (!fullResBlob) return;
+    const result = await executeOp('Threshold', api.applyThreshold, fullResBlob, threshold);
+    if (result) updateBlobs(result);
+  };
+
+  const handleApplySeg = async () => {
+    if (!fullResBlob) return;
+    const fn = segMethod === 'threshold' ? api.applySegThreshold : api.applySegEdge;
+    const arg = segMethod === 'threshold' ? 127 : 'canny';
+    const result = await executeOp('Segmentation', fn, fullResBlob, arg);
+    if (result) updateBlobs(result);
   };
 
   return (
@@ -92,6 +101,18 @@ export default function EdgeTab() {
             if (res) updateBlobs(res);
           }}>Dilation</button>
         </div>
+      </section>
+
+      <section>
+        <h4>Segmentation</h4>
+        <div className="select-control">
+          <label>Method</label>
+          <select value={segMethod} onChange={(e) => setSegMethod(e.target.value)}>
+            <option value="threshold">Threshold-based</option>
+            <option value="edge">Edge-based</option>
+          </select>
+        </div>
+        <button className="btn-block" onClick={handleApplySeg} disabled={isLoading}>Run Segmentation</button>
       </section>
     </div>
   );

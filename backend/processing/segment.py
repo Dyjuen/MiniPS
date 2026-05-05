@@ -11,7 +11,7 @@ def segment_by_threshold(image_ndarray, value=127):
     _, mask = cv2.threshold(gray, value, 255, cv2.THRESH_BINARY)
     return mask
 
-def segment_by_edge(image_ndarray, method="canny"):
+def segment_by_edge(image_ndarray, method="canny", scale=1.0):
     """Segment image using edge detection result as mask"""
     if len(image_ndarray.shape) == 3:
         gray = cv2.cvtColor(image_ndarray, cv2.COLOR_RGB2GRAY)
@@ -21,6 +21,8 @@ def segment_by_edge(image_ndarray, method="canny"):
     if method == "canny":
         edges = cv2.Canny(gray, 100, 200)
     else:
+        sigma = 1.0 * scale
+        gray = cv2.GaussianBlur(gray, (0, 0), sigma)
         grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
         grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         edges = cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))

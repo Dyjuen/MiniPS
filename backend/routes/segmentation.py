@@ -1,87 +1,68 @@
-from flask import Blueprint, request, jsonify
-from backend.utils.image_utils import base64_to_ndarray, ndarray_to_base64
-from backend.utils.validators import validate_schema
+import asyncio
+import cv2
+import numpy as np
+from fastapi import APIRouter, Request, Header, Response
 from backend.processing.segment import (
     segment_by_threshold, 
     segment_by_edge, 
     segment_by_region
 )
 
-segmentation_bp = Blueprint('segmentation', __name__)
+router = APIRouter()
 
-@segmentation_bp.route('/threshold', methods=['POST'])
-def threshold():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'value': {'type': int, 'min': 0, 'max': 255, 'default': 127}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = segment_by_threshold(img, params['value'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+async def get_image_from_body(request: Request) -> np.ndarray:
+    body = await request.body()
+    nparr = np.frombuffer(body, np.uint8)
+    return cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
 
-@segmentation_bp.route('/edge', methods=['POST'])
-def edge():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
-    
-    schema = {
-        'method': {'type': str, 'allowed': ['canny', 'sobel'], 'default': 'canny'}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
-    
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = segment_by_edge(img, params['method'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+def ndarray_to_jpeg_bytes(img: np.ndarray) -> bytes:
+    _, buffer = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return buffer.tobytes()
 
-@segmentation_bp.route('/region', methods=['POST'])
-def region():
-    data = request.get_json()
-    if not data or 'image' not in data:
-        return jsonify({"success": False, "error": "No image data provided"}), 400
+@router.post("/threshold")
+async def threshold(
+    request: Request,
+    x_minips_value: int = Header(127, alias="X-MiniPS-Threshold-Value")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        segment_by_threshold,
+        img, x_minips_value
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/edge")
+async def edge(
+    request: Request,
+    x_minips_method: str = Header("canny", alias="X-MiniPS-Edge-Method")
+):
+    img = await get_image_from_body(request)
     
-    schema = {
-        'seed_x': {'type': int, 'required': True},
-        'seed_y': {'type': int, 'required': True},
-        'tolerance': {'type': int, 'min': 0, 'max': 100, 'default': 10}
-    }
-    is_valid, params, err = validate_schema(data.get('params', {}), schema)
-    if not is_valid:
-        return jsonify({"success": False, "error": err}), 400
+    # NORMALIZATION for segmentation edges
+    scale = img.shape[1] / 1024.0
     
-    try:
-        img = base64_to_ndarray(data['image'])
-        result = segment_by_region(img, params['seed_x'], params['seed_y'], params['tolerance'])
-        result_b64 = ndarray_to_base64(result)
-        return jsonify({
-            "success": True, 
-            "image": result_b64,
-            "metadata": {"width": result.shape[1], "height": result.shape[0]}
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        segment_by_edge,
+        img, x_minips_method, scale
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/region")
+async def region(
+    request: Request,
+    x_minips_seed_x: int = Header(..., alias="X-MiniPS-Seed-X"),
+    x_minips_seed_y: int = Header(..., alias="X-MiniPS-Seed-Y"),
+    x_minips_tolerance: int = Header(10, alias="X-MiniPS-Tolerance")
+):
+    img = await get_image_from_body(request)
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        segment_by_region,
+        img, x_minips_seed_x, x_minips_seed_y, x_minips_tolerance
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

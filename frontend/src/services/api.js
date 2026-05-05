@@ -113,6 +113,30 @@ export const applyColorAdjust = (blob, hue, saturation) =>
     'X-MiniPS-Saturation': saturation.toString()
   });
 
+// Segmentation
+export const applySegThreshold = (blob, value) => 
+  postBinaryOp('/segment/threshold', blob, {
+    'X-MiniPS-Threshold-Value': value.toString()
+  });
+
+export const applySegEdge = (blob, method) => 
+  postBinaryOp('/segment/edge', blob, {
+    'X-MiniPS-Edge-Method': method
+  });
+
+export const applySegRegion = (blob, seed_x, seed_y, tolerance = 10) => 
+  postBinaryOp('/segment/region', blob, {
+    'X-MiniPS-Seed-X': seed_x.toString(),
+    'X-MiniPS-Seed-Y': seed_y.toString(),
+    'X-MiniPS-Tolerance': tolerance.toString()
+  });
+
+// Histogram Data
+export const getHistogramData = (blob, mode = 'grayscale') => 
+  postBinaryOp('/histogram/analyze', blob, {
+    'X-MiniPS-Histogram-Mode': mode
+  });
+
 // Compression
 export const applyJpegSim = (blob, quality) => 
   postBinaryOp('/compress/jpeg', blob, {
