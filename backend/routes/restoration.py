@@ -26,11 +26,15 @@ async def gaussian(
     x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
 ):
     img = await get_image_from_body(request)
+    
+    # NORMALIZATION
+    scale = img.shape[1] / 1024.0
+    
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor,
         gaussian_blur,
-        img, x_minips_percent
+        img, x_minips_percent, scale
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 
@@ -40,11 +44,15 @@ async def median(
     x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
 ):
     img = await get_image_from_body(request)
+    
+    # NORMALIZATION for Median (must be integer kernel)
+    scale = img.shape[1] / 1024.0
+    
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor,
         median_filter,
-        img, x_minips_percent
+        img, x_minips_percent, scale
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 
@@ -55,10 +63,14 @@ async def denoise(
     x_minips_percent: int = Header(50, alias="X-MiniPS-Percent")
 ):
     img = await get_image_from_body(request)
+    
+    # NORMALIZATION
+    scale = img.shape[1] / 1024.0
+    
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor,
         denoise_image,
-        img, x_minips_method, x_minips_percent
+        img, x_minips_method, x_minips_percent, scale
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

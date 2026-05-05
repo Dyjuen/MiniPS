@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
@@ -6,7 +6,6 @@ import * as api from '../../../services/api';
 
 export default function EnhanceTab() {
   const { 
-    currentImage, 
     setCurrentImage, 
     addToast, 
     proxyBlob, 
@@ -19,30 +18,51 @@ export default function EnhanceTab() {
   
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
-  const [sharpness, setSharpness] = useState(1);
+  const [sharpness, setSharpness] = useState(0);
+  const [smoothing, setSmoothing] = useState(0);
 
   const { resetSignal } = useAppState();
+
+  // Create a stable URL for the base proxy
+  const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
 
   useEffect(() => {
     setBrightness(0);
     setContrast(0);
-    setSharpness(1);
+    setSharpness(0);
+    setSmoothing(0);
   }, [resetSignal]);
 
-  // Live Preview Effect (No Debounce)
+  // Live Preview Effects with Snap-back
   useEffect(() => {
-    if (!proxyBlob) return;
+    if (!proxyBlob || !proxyUrl) return;
     if (brightness !== 0 || contrast !== 0) {
       previewOp(proxyBlob, api.applyBrightness, brightness, contrast);
+    } else {
+      setCurrentImage(proxyUrl);
     }
-  }, [brightness, contrast, proxyBlob]);
+  }, [brightness, contrast, proxyBlob, proxyUrl]);
 
   useEffect(() => {
-    if (!proxyBlob) return;
-    if (sharpness !== 1) {
-      previewOp(proxyBlob, api.applySharpen, sharpness);
+    if (!proxyBlob || !proxyUrl) return;
+    if (sharpness > 0) {
+      // Map 0-100 to 0-5.0
+      const intensity = (sharpness / 100) * 5.0;
+      previewOp(proxyBlob, api.applySharpen, intensity);
+    } else {
+      setCurrentImage(proxyUrl);
     }
-  }, [sharpness, proxyBlob]);
+  }, [sharpness, proxyBlob, proxyUrl]);
+
+  useEffect(() => {
+    if (!proxyBlob || !proxyUrl) return;
+    if (smoothing > 0) {
+      const kernel = Math.round((smoothing / 100) * 48) + 3;
+      previewOp(proxyBlob, api.applySmooth, kernel);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [smoothing, proxyBlob, proxyUrl]);
 
   const handleApply = async () => {
     if (!fullResBlob) return;
@@ -52,13 +72,21 @@ export default function EnhanceTab() {
     if (brightness !== 0 || contrast !== 0) {
       resultBlob = await executeOp('Brightness/Contrast', api.applyBrightness, resultBlob, brightness, contrast);
     }
-    if (sharpness !== 1) {
-      resultBlob = await executeOp('Sharpen', api.applySharpen, resultBlob, sharpness);
+    if (sharpness > 0) {
+      const intensity = (sharpness / 100) * 5.0;
+      resultBlob = await executeOp('Sharpen', api.applySharpen, resultBlob, intensity);
+    }
+    if (smoothing > 0) {
+      const kernel = Math.round((smoothing / 100) * 48) + 3;
+      resultBlob = await executeOp('Smoothing', api.applySmooth, resultBlob, kernel);
     }
 
     if (resultBlob) {
       setFullResBlob(resultBlob);
-      // Update proxy too
+      const url = URL.createObjectURL(resultBlob);
+      setCurrentImage(url); // Set display to sharpened high-res
+      
+      // Regenerate proxy from high-res result
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -68,12 +96,12 @@ export default function EnhanceTab() {
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
       };
-      img.src = URL.createObjectURL(resultBlob);
-      setCurrentImage(img.src); // Update display to full-res sharp version
+      img.src = url;
       
       setBrightness(0);
       setContrast(0);
-      setSharpness(1);
+      setSharpness(0);
+      setSmoothing(0);
       addToast('Applied to full resolution', 'success');
     }
   };
@@ -84,10 +112,10 @@ export default function EnhanceTab() {
         <h4>Brightness & contrast</h4>
         <SliderControl label="Brightness" min={-100} max={100} value={brightness} onChange={setBrightness} />
         <SliderControl label="Contrast" min={-100} max={100} value={contrast} onChange={setContrast} />
-        <SliderControl label="Sharpness" min={1} max={5} value={sharpness} step={0.1} onChange={setSharpness} />
+        <SliderControl label="Sharpness" min={0} max={100} value={sharpness} onChange={setSharpness} />
+        <SliderControl label="Smoothing" min={0} max={100} value={smoothing} onChange={setSmoothing} />
         <div className="btn-group">
           <button onClick={() => executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob)}>Histogram Eq.</button>
-          <button onClick={() => executeOp('Smoothing', api.applySmooth, fullResBlob, 3)}>Smoothing</button>
         </div>
       </section>
 

@@ -16,7 +16,7 @@ def apply_threshold(image_ndarray, value=127, method="binary"):
     _, result = cv2.threshold(gray, value, 255, thresh_type)
     return result
 
-def detect_edges(image_ndarray, method="canny"):
+def detect_edges(image_ndarray, method="canny", scale=1.0):
     """Detect edges in image"""
     # Ensure grayscale
     if len(image_ndarray.shape) == 3:
@@ -25,33 +25,23 @@ def detect_edges(image_ndarray, method="canny"):
         gray = image_ndarray
         
     if method == "canny":
+        # Scale Canny thresholds by resolution? 
+        # Usually Canny is more sensitive at high res.
+        # But fixed pixel thresholds are standard. 
+        # Just return result.
         return cv2.Canny(gray, 100, 200)
     elif method == "sobel":
+        # Sobel radius is fixed (3x3), but we can blur before to normalize
+        sigma = 1.0 * scale
+        gray = cv2.GaussianBlur(gray, (0, 0), sigma)
         grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
         grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
         return cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
-    elif method == "prewitt":
-        kernelx = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
-        kernely = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]])
-        img_prewittx = cv2.filter2D(gray, -1, kernelx)
-        img_prewitty = cv2.filter2D(gray, -1, kernely)
-        return cv2.addWeighted(img_prewittx, 0.5, img_prewitty, 0.5, 0)
-    elif method == "roberts":
-        kernelx = np.array([[1, 0], [0, -1]])
-        kernely = np.array([[0, 1], [-1, 0]])
-        img_robertsx = cv2.filter2D(gray, -1, kernelx)
-        img_robertsy = cv2.filter2D(gray, -1, kernely)
-        return cv2.addWeighted(img_robertsx, 0.5, img_robertsy, 0.5, 0)
-    elif method == "laplacian":
-        return cv2.convertScaleAbs(cv2.Laplacian(gray, cv2.CV_64F))
-    elif method == "log":
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-        return cv2.convertScaleAbs(cv2.Laplacian(blurred, cv2.CV_64F))
     
     return gray
 
 def apply_morphology(image_ndarray, operation="erosion", kernel_size=3):
-    """Apply morphological operations"""
+    """Apply morphological operations. kernel_size must be pre-scaled."""
     kernel = np.ones((kernel_size, kernel_size), np.uint8)
     
     if operation == "erosion":

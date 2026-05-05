@@ -22,24 +22,32 @@ def histogram_equalization(image_ndarray):
         ycrcb[:, :, 0] = cv2.equalizeHist(ycrcb[:, :, 0])
         return cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2RGB)
 
-def sharpen_image(image_ndarray, intensity=1):
+def sharpen_image(image_ndarray, intensity=0, scale=1.0):
     """
     Sharpen an image using an unsharp mask approach.
-    intensity: 1 to 5
+    intensity: 0.0 to 5.0 (0 is no-op)
+    scale: resolution multiplier (1.0 for 1024px)
     """
-    # Base sharpening kernel is too aggressive for high intensity
-    # Let's use Gaussian Blur to create a mask
-    blurred = cv2.GaussianBlur(image_ndarray, (0, 0), 3)
-    # result = original + intensity * (original - blurred)
-    # addWeighted: src1 * alpha + src2 * beta + gamma
-    # result = image * (1 + intensity) + blurred * (-intensity)
-    alpha = 1.0 + (0.5 * intensity)
-    beta = -0.5 * intensity
+    if intensity == 0:
+        return image_ndarray
+        
+    # Scale the sigma (radius) by resolution to keep effect identical
+    # Reference sigma 3.0 at 1024px
+    sigma = 3.0 * scale
+    
+    # GaussianBlur (0,0) tells OpenCV to use sigma
+    blurred = cv2.GaussianBlur(image_ndarray, (0, 0), sigma)
+    
+    # Formula: result = image + intensity * (image - blurred)
+    alpha = 1.0 + intensity
+    beta = -intensity
     result = cv2.addWeighted(image_ndarray, alpha, blurred, beta, 0)
     return result
 
 def smooth_image(image_ndarray, kernel_size=3):
-    """Apply smoothing (blur) to an image"""
+    """Apply Gaussian smoothing (blur) to an image"""
     if kernel_size % 2 == 0:
         kernel_size += 1
-    return cv2.blur(image_ndarray, (kernel_size, kernel_size))
+    if kernel_size < 1:
+        kernel_size = 1
+    return cv2.GaussianBlur(image_ndarray, (kernel_size, kernel_size), 0)

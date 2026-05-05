@@ -28,15 +28,12 @@ async def brightness(
     x_minips_contrast: int = Header(0, alias="X-MiniPS-Contrast")
 ):
     img = await get_image_from_body(request)
-    
-    # Run in process pool to bypass GIL
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor, 
         adjust_brightness_contrast, 
         img, x_minips_brightness, x_minips_contrast
     )
-    
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 
 @router.post("/histogram-eq")
@@ -53,27 +50,40 @@ async def histogram_eq(request: Request):
 @router.post("/sharpen")
 async def sharpen(
     request: Request,
-    x_minips_intensity: int = Header(1, alias="X-MiniPS-Intensity")
+    x_minips_intensity: float = Header(1.0, alias="X-MiniPS-Intensity")
 ):
     img = await get_image_from_body(request)
+    
+    # NORMALIZATION: Scale sigma/radius by resolution
+    # Reference: 1024px. If image is 4096px, scale is 4.0.
+    scale = img.shape[1] / 1024.0
+    
     loop = asyncio.get_event_loop()
+    # Processing engine needs to support sigma/radius scaling
     result = await loop.run_in_executor(
         request.app.state.executor,
         sharpen_image,
-        img, x_minips_intensity
+        img, x_minips_intensity, scale
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 
 @router.post("/smooth")
 async def smooth(
     request: Request,
-    x_minips_kernel: int = Header(3, alias="X-MiniPS-Kernel")
+    x_minips_kernel: float = Header(3.0, alias="X-MiniPS-Kernel")
 ):
     img = await get_image_from_body(request)
+    
+    # NORMALIZATION: Scale kernel size
+    scale = img.shape[1] / 1024.0
+    k = int(x_minips_kernel * scale)
+    if k % 2 == 0: k += 1
+    if k < 1: k = 1
+    
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor,
         smooth_image,
-        img, x_minips_kernel
+        img, k
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
