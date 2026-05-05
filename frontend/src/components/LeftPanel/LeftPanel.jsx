@@ -6,26 +6,12 @@ import EdgeTab from './tabs/EdgeTab';
 import MoreTab from './tabs/MoreTab';
 
 export default function LeftPanel() {
-  const { activeTab, setActiveTab, currentImage, sessionBase, setSessionBase, setCurrentImage } = useAppState();
+  const { activeTab, setActiveTab } = useAppState();
 
   const tabs = ['Enhance', 'Restore', 'Edge', 'More'];
 
   const handleTabChange = (newTab) => {
     if (activeTab === newTab) return;
-
-    // Check if dirty (currentImage different from sessionBase)
-    if (sessionBase && currentImage !== sessionBase) {
-      const confirmDiscard = window.confirm(
-        'You have unapplied changes in the current tab. Do you want to discard them and switch?'
-      );
-      if (!confirmDiscard) return; // Block transition
-
-      // If switching, revert to sessionBase first
-      setCurrentImage(sessionBase);
-    }
-
-    // Reset sessionBase for the new tab
-    setSessionBase(null); 
     setActiveTab(newTab);
   };
 

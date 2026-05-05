@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
 
 export default function RestoreTab() {
-  const { proxyBlob, fullResBlob, setFullResBlob, setProxyBlob, addToast, resetSignal } = useAppState();
+  const { proxyBlob, proxyUrl, fullResBlob, setFullResBlob, setProxyBlob, setCurrentImage, addToast, resetSignal } = useAppState();
   const { executeOp, previewOp, isLoading } = useApi();
 
   const [gBlur, setGBlur] = useState(50);
@@ -23,26 +23,42 @@ export default function RestoreTab() {
     setSat(0);
   }, [resetSignal]);
 
-  // Live Previews (No Debounce)
+  // Live Previews (No Debounce) with Snap-back
   useEffect(() => {
-    if (!proxyBlob) return;
-    if (gBlur !== 50) previewOp(proxyBlob, api.applyGaussian, gBlur);
-  }, [gBlur, proxyBlob]);
+    if (!proxyBlob || !proxyUrl) return;
+    if (gBlur !== 50) {
+      previewOp(proxyBlob, api.applyGaussian, gBlur);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [gBlur, proxyBlob, proxyUrl, setCurrentImage]);
 
   useEffect(() => {
-    if (!proxyBlob) return;
-    if (mFilter !== 50) previewOp(proxyBlob, api.applyMedian, mFilter);
-  }, [mFilter, proxyBlob]);
+    if (!proxyBlob || !proxyUrl) return;
+    if (mFilter !== 50) {
+      previewOp(proxyBlob, api.applyMedian, mFilter);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [mFilter, proxyBlob, proxyUrl, setCurrentImage]);
 
   useEffect(() => {
-    if (!proxyBlob) return;
-    if (noise !== 50) previewOp(proxyBlob, api.applyDenoise, noiseMethod, noise);
-  }, [noise, noiseMethod, proxyBlob]);
+    if (!proxyBlob || !proxyUrl) return;
+    if (noise !== 50) {
+      previewOp(proxyBlob, api.applyDenoise, noiseMethod, noise);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [noise, noiseMethod, proxyBlob, proxyUrl, setCurrentImage]);
 
   useEffect(() => {
-    if (!proxyBlob) return;
-    if (hue !== 0 || sat !== 0) previewOp(proxyBlob, api.applyColorAdjust, hue, sat);
-  }, [hue, sat, proxyBlob]);
+    if (!proxyBlob || !proxyUrl) return;
+    if (hue !== 0 || sat !== 0) {
+      previewOp(proxyBlob, api.applyColorAdjust, hue, sat);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [hue, sat, proxyBlob, proxyUrl, setCurrentImage]);
 
   const updateBlobs = (newFullResBlob) => {
     setFullResBlob(newFullResBlob);
@@ -56,6 +72,7 @@ export default function RestoreTab() {
       canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
     };
     img.src = URL.createObjectURL(newFullResBlob);
+    setCurrentImage(img.src);
   };
 
   const handleApply = async () => {

@@ -7,6 +7,9 @@ export default function Toolbar() {
   const { 
     currentImage,
     setCurrentImage,
+    fullResBlob,
+    setFullResBlob,
+    setProxyBlob,
     handleLoadImage, 
     handleReset, 
     handleZoom,
@@ -22,6 +25,20 @@ export default function Toolbar() {
 
   const { executeOp } = useApi();
   const fileInputRef = useRef(null);
+
+  const updateBlobs = (newFullResBlob) => {
+    setFullResBlob(newFullResBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
+    };
+    img.src = URL.createObjectURL(newFullResBlob);
+  };
 
   const handleUndo = () => {
     if (historyIndex > 0) {
@@ -60,6 +77,11 @@ export default function Toolbar() {
     }
   };
 
+  const wrapOp = async (name, fn, ...args) => {
+    const res = await executeOp(name, fn, fullResBlob, ...args);
+    if (res) updateBlobs(res);
+  };
+
   const buttons = [
     { label: 'Load', action: () => fileInputRef.current.click(), title: 'Load Image' },
     { label: 'Save', action: handleSave, title: 'Save Image' },
@@ -79,17 +101,17 @@ export default function Toolbar() {
     { label: 'Zoom-', action: () => handleZoom(-25), title: 'Zoom Out' },
     { 
       label: 'Rotate CW', 
-      action: () => executeOp('Rotate 90', api.applyRotate, 90, 'bilinear'), 
+      action: () => wrapOp('Rotate 90', api.applyRotate, 90, 'bilinear'), 
       title: 'Rotate 90° Clockwise' 
     },
     { 
       label: 'Flip H', 
-      action: () => executeOp('Flip H', api.applyFlip, 'horizontal'), 
+      action: () => wrapOp('Flip H', api.applyFlip, 'horizontal'), 
       title: 'Flip Horizontal' 
     },
     { 
       label: 'Flip V', 
-      action: () => executeOp('Flip V', api.applyFlip, 'vertical'), 
+      action: () => wrapOp('Flip V', api.applyFlip, 'vertical'), 
       title: 'Flip Vertical' 
     },
     { label: 'Undo', action: handleUndo, title: 'Undo (Ctrl+Z)' },

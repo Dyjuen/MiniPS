@@ -7,9 +7,11 @@ import * as api from '../../../services/api';
 export default function EdgeTab() {
   const { 
     proxyBlob, 
+    proxyUrl,
     fullResBlob, 
     setFullResBlob, 
     setProxyBlob, 
+    setCurrentImage,
     addToast,
     resetSignal
   } = useAppState();
@@ -27,11 +29,15 @@ export default function EdgeTab() {
     setMorphKernel(3);
   }, [resetSignal]);
 
-  // Live Preview Effect (Threshold)
+  // Live Preview Effect (Threshold) with Snap-back
   useEffect(() => {
-    if (!proxyBlob) return;
-    previewOp(proxyBlob, api.applyThreshold, threshold);
-  }, [threshold, proxyBlob]);
+    if (!proxyBlob || !proxyUrl) return;
+    if (threshold !== 128) {
+      previewOp(proxyBlob, api.applyThreshold, threshold);
+    } else {
+      setCurrentImage(proxyUrl);
+    }
+  }, [threshold, proxyBlob, proxyUrl, setCurrentImage]);
 
   const updateBlobs = (newFullResBlob) => {
     setFullResBlob(newFullResBlob);
@@ -45,12 +51,16 @@ export default function EdgeTab() {
       canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
     };
     img.src = URL.createObjectURL(newFullResBlob);
+    setCurrentImage(img.src);
   };
 
   const handleApplyThreshold = async () => {
     if (!fullResBlob) return;
     const result = await executeOp('Threshold', api.applyThreshold, fullResBlob, threshold);
-    if (result) updateBlobs(result);
+    if (result) {
+      updateBlobs(result);
+      setThreshold(128);
+    }
   };
 
   const handleApplySeg = async () => {

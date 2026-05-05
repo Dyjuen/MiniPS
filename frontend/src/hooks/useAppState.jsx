@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
 const AppContext = createContext();
 
@@ -27,6 +27,9 @@ export function AppProvider({ children }) {
   const [proxyBlob, setProxyBlob] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [resetSignal, setResetSignal] = useState(0);
+
+  // Stable URL for the base proxy
+  const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -93,6 +96,7 @@ export function AppProvider({ children }) {
     originalBlob, setOriginalBlob,
     fullResBlob, setFullResBlob,
     proxyBlob, setProxyBlob,
+    proxyUrl,
     imageMetadata, setImageMetadata,
     zoomLevel, setZoomLevel,
     cursorPos, setCursorPos,

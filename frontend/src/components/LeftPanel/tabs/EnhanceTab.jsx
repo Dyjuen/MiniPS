@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
@@ -9,6 +9,7 @@ export default function EnhanceTab() {
     setCurrentImage, 
     addToast, 
     proxyBlob, 
+    proxyUrl,
     fullResBlob,
     setFullResBlob,
     setProxyBlob
@@ -22,9 +23,6 @@ export default function EnhanceTab() {
   const [smoothing, setSmoothing] = useState(0);
 
   const { resetSignal } = useAppState();
-
-  // Create a stable URL for the base proxy
-  const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
 
   useEffect(() => {
     setBrightness(0);
@@ -41,18 +39,17 @@ export default function EnhanceTab() {
     } else {
       setCurrentImage(proxyUrl);
     }
-  }, [brightness, contrast, proxyBlob, proxyUrl]);
+  }, [brightness, contrast, proxyBlob, proxyUrl, setCurrentImage]);
 
   useEffect(() => {
     if (!proxyBlob || !proxyUrl) return;
     if (sharpness > 0) {
-      // Map 0-100 to 0-5.0
       const intensity = (sharpness / 100) * 5.0;
       previewOp(proxyBlob, api.applySharpen, intensity);
     } else {
       setCurrentImage(proxyUrl);
     }
-  }, [sharpness, proxyBlob, proxyUrl]);
+  }, [sharpness, proxyBlob, proxyUrl, setCurrentImage]);
 
   useEffect(() => {
     if (!proxyBlob || !proxyUrl) return;
@@ -62,11 +59,25 @@ export default function EnhanceTab() {
     } else {
       setCurrentImage(proxyUrl);
     }
-  }, [smoothing, proxyBlob, proxyUrl]);
+  }, [smoothing, proxyBlob, proxyUrl, setCurrentImage]);
+
+  const updateBlobs = (newFullResBlob) => {
+    setFullResBlob(newFullResBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
+    };
+    img.src = URL.createObjectURL(newFullResBlob);
+    setCurrentImage(img.src);
+  };
 
   const handleApply = async () => {
     if (!fullResBlob) return;
-    
     let resultBlob = fullResBlob;
     
     if (brightness !== 0 || contrast !== 0) {
@@ -82,26 +93,8 @@ export default function EnhanceTab() {
     }
 
     if (resultBlob) {
-      setFullResBlob(resultBlob);
-      const url = URL.createObjectURL(resultBlob);
-      setCurrentImage(url); // Set display to sharpened high-res
-      
-      // Regenerate proxy from high-res result
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
-      };
-      img.src = url;
-      
-      setBrightness(0);
-      setContrast(0);
-      setSharpness(0);
-      setSmoothing(0);
+      updateBlobs(resultBlob);
+      setBrightness(0); setContrast(0); setSharpness(0); setSmoothing(0);
       addToast('Applied to full resolution', 'success');
     }
   };
@@ -120,13 +113,7 @@ export default function EnhanceTab() {
       </section>
 
       <section className="apply-section">
-        <button 
-          className="btn-block btn-primary" 
-          onClick={handleApply}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Applying...' : 'Apply to Full Res'}
-        </button>
+        <button className="btn-block btn-primary" onClick={handleApply} disabled={isLoading}>Apply to Full Res</button>
       </section>
     </div>
   );
