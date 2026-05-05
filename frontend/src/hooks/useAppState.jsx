@@ -4,12 +4,13 @@ const AppContext = createContext();
 
 export function AppProvider({ children }) {
   const [currentImage, setCurrentImage] = useState(null);
-  const [originalImage, setOriginalImage] = useState(null);
   const [imageMetadata, setImageMetadata] = useState({
     filename: '',
     resolution: '',
     format: '',
-    fileSize: ''
+    fileSize: '',
+    w: 0,
+    h: 0
   });
   const [zoomLevel, setZoomLevel] = useState(100);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -20,11 +21,12 @@ export function AppProvider({ children }) {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [cropRect, setCropRect] = useState(null);
   const [selectedTool, setSelectedTool] = useState('move');
-  const [sessionBase, setSessionBase] = useState(null);
 
-  const [proxyBlob, setProxyBlob] = useState(null);
+  const [originalBlob, setOriginalBlob] = useState(null);
   const [fullResBlob, setFullResBlob] = useState(null);
+  const [proxyBlob, setProxyBlob] = useState(null);
   const [toasts, setToasts] = useState([]);
+  const [resetSignal, setResetSignal] = useState(0);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -34,9 +36,19 @@ export function AppProvider({ children }) {
     }, 3000);
   };
 
+  const createProxy = (img) => {
+    const canvas = document.createElement('canvas');
+    const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
+  };
+
   const handleLoadImage = (file) => {
     const url = URL.createObjectURL(file);
     setCurrentImage(url);
+    setOriginalBlob(file);
     setFullResBlob(file);
     setAppliedOps([]);
     setZoomLevel(100);
@@ -53,23 +65,23 @@ export function AppProvider({ children }) {
         format: file.type,
         fileSize: `${(file.size / 1024).toFixed(1)} KB`
       });
-
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
+      createProxy(img);
     };
     img.src = url;
   };
 
   const handleReset = () => {
-    if (fullResBlob) {
-      const url = URL.createObjectURL(fullResBlob);
+    if (originalBlob) {
+      const url = URL.createObjectURL(originalBlob);
       setCurrentImage(url);
+      setFullResBlob(originalBlob);
+      setAppliedOps([]);
+      setResetSignal(prev => prev + 1);
+      
+      const img = new Image();
+      img.onload = () => createProxy(img);
+      img.src = url;
     }
-    setAppliedOps([]);
   };
 
   const handleZoom = (delta) => {
@@ -78,9 +90,9 @@ export function AppProvider({ children }) {
 
   const value = {
     currentImage, setCurrentImage,
-    proxyBlob, setProxyBlob,
+    originalBlob, setOriginalBlob,
     fullResBlob, setFullResBlob,
-    originalImage, setOriginalImage,
+    proxyBlob, setProxyBlob,
     imageMetadata, setImageMetadata,
     zoomLevel, setZoomLevel,
     cursorPos, setCursorPos,
@@ -90,9 +102,9 @@ export function AppProvider({ children }) {
     history, setHistory,
     historyIndex, setHistoryIndex,
     toasts, addToast,
+    resetSignal,
     cropRect, setCropRect,
     selectedTool, setSelectedTool,
-    sessionBase, setSessionBase,
     handleLoadImage,
     handleReset,
     handleZoom

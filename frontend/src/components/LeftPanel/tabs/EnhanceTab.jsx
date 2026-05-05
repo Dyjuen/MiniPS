@@ -21,6 +21,14 @@ export default function EnhanceTab() {
   const [contrast, setContrast] = useState(0);
   const [sharpness, setSharpness] = useState(1);
 
+  const { resetSignal } = useAppState();
+
+  useEffect(() => {
+    setBrightness(0);
+    setContrast(0);
+    setSharpness(1);
+  }, [resetSignal]);
+
   // Live Preview Effect (No Debounce)
   useEffect(() => {
     if (!proxyBlob) return;
@@ -58,9 +66,10 @@ export default function EnhanceTab() {
         canvas.width = img.width * scale;
         canvas.height = img.height * scale;
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((b) => setProxyBlob(blob), 'image/jpeg', 0.9);
+        canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
       };
       img.src = URL.createObjectURL(resultBlob);
+      setCurrentImage(img.src); // Update display to full-res sharp version
       
       setBrightness(0);
       setContrast(0);

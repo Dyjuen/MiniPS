@@ -5,10 +5,15 @@ import * as api from '../../../services/api';
 import { useAppState } from '../../../hooks/useAppState';
 
 export default function MoreTab() {
-  const { fullResBlob, proxyBlob, setFullResBlob, setProxyBlob, addToast } = useAppState();
+  const { fullResBlob, proxyBlob, setFullResBlob, setProxyBlob, addToast, resetSignal } = useAppState();
   const { executeOp, isLoading } = useApi();
   const [quality, setQuality] = useState(85);
   const [method, setMethod] = useState('huffman');
+
+  React.useEffect(() => {
+    setQuality(85);
+    setMethod('huffman');
+  }, [resetSignal]);
   
   const originalSize = 284;
   const estSize = Math.round(originalSize * (quality / 100));

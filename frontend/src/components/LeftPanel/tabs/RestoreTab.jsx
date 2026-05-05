@@ -5,7 +5,7 @@ import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
 
 export default function RestoreTab() {
-  const { proxyBlob, fullResBlob, setFullResBlob, setProxyBlob, addToast } = useAppState();
+  const { proxyBlob, fullResBlob, setFullResBlob, setProxyBlob, addToast, resetSignal } = useAppState();
   const { executeOp, previewOp, isLoading } = useApi();
 
   const [gBlur, setGBlur] = useState(50);
@@ -14,6 +14,14 @@ export default function RestoreTab() {
   const [noiseMethod, setNoiseMethod] = useState('salt_pepper');
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(0);
+
+  useEffect(() => {
+    setGBlur(50);
+    setMFilter(50);
+    setNoise(50);
+    setHue(0);
+    setSat(0);
+  }, [resetSignal]);
 
   // Live Previews (No Debounce)
   useEffect(() => {

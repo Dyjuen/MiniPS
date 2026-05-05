@@ -10,7 +10,8 @@ export default function EdgeTab() {
     fullResBlob, 
     setFullResBlob, 
     setProxyBlob, 
-    addToast 
+    addToast,
+    resetSignal
   } = useAppState();
   
   const { executeOp, previewOp, isLoading } = useApi();
@@ -18,6 +19,12 @@ export default function EdgeTab() {
   const [threshold, setThreshold] = useState(128);
   const [edgeMethod, setEdgeMethod] = useState('canny');
   const [morphKernel, setMorphKernel] = useState(3);
+
+  useEffect(() => {
+    setThreshold(128);
+    setEdgeMethod('canny');
+    setMorphKernel(3);
+  }, [resetSignal]);
 
   // Live Preview Effect (Threshold)
   useEffect(() => {
