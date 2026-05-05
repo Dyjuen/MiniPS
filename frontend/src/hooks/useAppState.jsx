@@ -18,10 +18,13 @@ export function AppProvider({ children }) {
   const [activeTab, setActiveTab] = useState('Enhance');
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [toasts, setToasts] = useState([]);
   const [cropRect, setCropRect] = useState(null);
   const [selectedTool, setSelectedTool] = useState('move');
-  const [sessionBase, setSessionBase] = useState(null); // Added for parametric session tracking
+  const [sessionBase, setSessionBase] = useState(null);
+
+  const [proxyBlob, setProxyBlob] = useState(null);
+  const [fullResBlob, setFullResBlob] = useState(null);
+  const [toasts, setToasts] = useState([]);
 
   const addToast = (message, type = 'info') => {
     const id = Date.now();
@@ -30,9 +33,6 @@ export function AppProvider({ children }) {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   };
-
-  const [proxyBlob, setProxyBlob] = useState(null);
-  const [fullResBlob, setFullResBlob] = useState(null);
 
   const handleLoadImage = (file) => {
     const url = URL.createObjectURL(file);
@@ -54,13 +54,11 @@ export function AppProvider({ children }) {
         fileSize: `${(file.size / 1024).toFixed(1)} KB`
       });
 
-      // Create 1024px proxy
       const canvas = document.createElement('canvas');
       const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
     };
     img.src = url;
@@ -83,7 +81,18 @@ export function AppProvider({ children }) {
     proxyBlob, setProxyBlob,
     fullResBlob, setFullResBlob,
     originalImage, setOriginalImage,
-...
+    imageMetadata, setImageMetadata,
+    zoomLevel, setZoomLevel,
+    cursorPos, setCursorPos,
+    pixelRgb, setPixelRgb,
+    appliedOps, setAppliedOps,
+    activeTab, setActiveTab,
+    history, setHistory,
+    historyIndex, setHistoryIndex,
+    toasts, addToast,
+    cropRect, setCropRect,
+    selectedTool, setSelectedTool,
+    sessionBase, setSessionBase,
     handleLoadImage,
     handleReset,
     handleZoom
