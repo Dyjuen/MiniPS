@@ -8,17 +8,17 @@ export default function RestoreTab() {
   const { proxyBlob, proxyUrl, fullResBlob, setFullResBlob, setProxyBlob, setCurrentImage, addToast, resetSignal } = useAppState();
   const { executeOp, previewOp, isLoading } = useApi();
 
-  const [gBlur, setGBlur] = useState(50);
-  const [mFilter, setMFilter] = useState(50);
-  const [noise, setNoise] = useState(50);
+  const [gBlur, setGBlur] = useState(0);
+  const [mFilter, setMFilter] = useState(0);
+  const [noise, setNoise] = useState(0);
   const [noiseMethod, setNoiseMethod] = useState('salt_pepper');
   const [hue, setHue] = useState(0);
   const [sat, setSat] = useState(0);
 
   useEffect(() => {
-    setGBlur(50);
-    setMFilter(50);
-    setNoise(50);
+    setGBlur(0);
+    setMFilter(0);
+    setNoise(0);
     setHue(0);
     setSat(0);
   }, [resetSignal]);
@@ -26,7 +26,7 @@ export default function RestoreTab() {
   // Live Previews (No Debounce) with Snap-back
   useEffect(() => {
     if (!proxyBlob || !proxyUrl) return;
-    if (gBlur !== 50) {
+    if (gBlur > 0) {
       previewOp(proxyBlob, api.applyGaussian, gBlur);
     } else {
       setCurrentImage(proxyUrl);
@@ -35,7 +35,7 @@ export default function RestoreTab() {
 
   useEffect(() => {
     if (!proxyBlob || !proxyUrl) return;
-    if (mFilter !== 50) {
+    if (mFilter > 0) {
       previewOp(proxyBlob, api.applyMedian, mFilter);
     } else {
       setCurrentImage(proxyUrl);
@@ -44,7 +44,7 @@ export default function RestoreTab() {
 
   useEffect(() => {
     if (!proxyBlob || !proxyUrl) return;
-    if (noise !== 50) {
+    if (noise > 0) {
       previewOp(proxyBlob, api.applyDenoise, noiseMethod, noise);
     } else {
       setCurrentImage(proxyUrl);
@@ -78,14 +78,14 @@ export default function RestoreTab() {
   const handleApply = async () => {
     if (!fullResBlob) return;
     let result = fullResBlob;
-    if (gBlur !== 50) result = await executeOp('Gaussian Blur', api.applyGaussian, result, gBlur);
-    if (mFilter !== 50) result = await executeOp('Median Filter', api.applyMedian, result, mFilter);
-    if (noise !== 50) result = await executeOp('Denoise', api.applyDenoise, result, noiseMethod, noise);
+    if (gBlur > 0) result = await executeOp('Gaussian Blur', api.applyGaussian, result, gBlur);
+    if (mFilter > 0) result = await executeOp('Median Filter', api.applyMedian, result, mFilter);
+    if (noise > 0) result = await executeOp('Denoise', api.applyDenoise, result, noiseMethod, noise);
     if (hue !== 0 || sat !== 0) result = await executeOp('Color Adjust', api.applyColorAdjust, result, hue, sat);
 
     if (result) {
       updateBlobs(result);
-      setGBlur(50); setMFilter(50); setNoise(50); setHue(0); setSat(0);
+      setGBlur(0); setMFilter(0); setNoise(0); setHue(0); setSat(0);
       addToast('Applied to full resolution', 'success');
     }
   };
@@ -94,17 +94,17 @@ export default function RestoreTab() {
     <div className="tab-content">
       <section>
         <h4>Gaussian blur</h4>
-        <SliderControl label="Blur strength" min={1} max={100} value={gBlur} unit="%" onChange={setGBlur} />
+        <SliderControl label="Blur strength" min={0} max={100} value={gBlur} unit="%" onChange={setGBlur} />
       </section>
 
       <section>
         <h4>Median filter</h4>
-        <SliderControl label="Filter strength" min={1} max={100} value={mFilter} unit="%" onChange={setMFilter} />
+        <SliderControl label="Filter strength" min={0} max={100} value={mFilter} unit="%" onChange={setMFilter} />
       </section>
 
       <section>
         <h4>Noise reduction</h4>
-        <SliderControl label="Reduction strength" min={1} max={100} value={noise} unit="%" onChange={setNoise} />
+        <SliderControl label="Reduction strength" min={0} max={100} value={noise} unit="%" onChange={setNoise} />
         <div className="select-control">
           <label>Method</label>
           <select value={noiseMethod} onChange={(e) => setNoiseMethod(e.target.value)}>
