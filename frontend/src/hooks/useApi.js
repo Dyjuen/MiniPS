@@ -4,7 +4,9 @@ import * as api from '../services/api';
 
 export function useApi() {
   const { 
+    currentImage,
     setCurrentImage, 
+    setOriginalUrl,
     appliedOps, 
     setAppliedOps,
     history,
@@ -59,7 +61,7 @@ export function useApi() {
     } finally {
       setIsLoading(false);
     }
-  }, [appliedOps, history, historyIndex, setCurrentImage, setAppliedOps, setHistory, setHistoryIndex, addToast]);
+  }, [appliedOps, history, historyIndex, setCurrentImage, setOriginalUrl, setAppliedOps, setHistory, setHistoryIndex, addToast]);
 
   const previewOp = useCallback(async (baseBlob, apiFn, ...args) => {
     if (!baseBlob) return;

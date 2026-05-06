@@ -275,13 +275,62 @@ html, body, #root {
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 12px;
+  padding: 6px 16px;
   border-radius: 20px;
   z-index: 10;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.canvas-controls button {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.canvas-controls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.canvas-controls button.active {
+  background: #378ADD;
+  color: #fff;
+}
+
+.canvas-controls .separator {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+.image-container {
+  position: relative;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.image-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  pointer-events: none;
+  z-index: 5;
+  letter-spacing: 1px;
 }
 
 .canvas-overlay {

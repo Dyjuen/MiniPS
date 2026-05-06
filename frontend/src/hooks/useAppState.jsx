@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 
 const AppContext = createContext();
 
@@ -23,6 +23,8 @@ export function AppProvider({ children }) {
   const [selectedTool, setSelectedTool] = useState('move');
 
   const [originalBlob, setOriginalBlob] = useState(null);
+  const [originalUrl, setOriginalUrl] = useState(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
   const [fullResBlob, setFullResBlob] = useState(null);
   const [proxyBlob, setProxyBlob] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -51,12 +53,14 @@ export function AppProvider({ children }) {
   const handleLoadImage = (file) => {
     const url = URL.createObjectURL(file);
     setCurrentImage(url);
+    setOriginalUrl(url);
     setOriginalBlob(file);
     setFullResBlob(file);
     setAppliedOps([]);
     setZoomLevel(100);
     setHistory([url]);
     setHistoryIndex(0);
+    setIsCompareMode(false);
 
     const img = new Image();
     img.onload = () => {
@@ -77,9 +81,11 @@ export function AppProvider({ children }) {
     if (originalBlob) {
       const url = URL.createObjectURL(originalBlob);
       setCurrentImage(url);
+      setOriginalUrl(url);
       setFullResBlob(originalBlob);
       setAppliedOps([]);
       setResetSignal(prev => prev + 1);
+      setIsCompareMode(false);
       
       const img = new Image();
       img.onload = () => createProxy(img);
@@ -94,6 +100,8 @@ export function AppProvider({ children }) {
   const value = {
     currentImage, setCurrentImage,
     originalBlob, setOriginalBlob,
+    originalUrl, setOriginalUrl,
+    isCompareMode, setIsCompareMode,
     fullResBlob, setFullResBlob,
     proxyBlob, setProxyBlob,
     proxyUrl,

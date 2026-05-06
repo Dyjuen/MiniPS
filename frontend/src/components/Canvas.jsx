@@ -1,21 +1,23 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 
 export default function Canvas() {
   const { 
-    currentImage, 
+    currentImage,
+    originalUrl,
     imageMetadata, 
     zoomLevel, 
+    setZoomLevel,
     handleZoom, 
     setCursorPos, 
-    setPixelRgb,
     appliedOps,
     cropRect,
     setCropRect,
     selectedTool,
-    addToast
+    isCompareMode,
+    setIsCompareMode,
   } = useAppState();
   
   const { executeOp, isLoading, error } = useApi();
@@ -26,6 +28,35 @@ export default function Canvas() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+
+  const autoFit = useCallback(() => {
+    if (!viewportRef.current || !imageMetadata.w || !imageMetadata.h) return;
+
+    const vWidth = viewportRef.current.clientWidth;
+    const vHeight = viewportRef.current.clientHeight;
+    
+    // Account for padding and gap
+    const padding = 40;
+    const gap = isCompareMode ? 20 : 0;
+    
+    const availableWidth = isCompareMode ? (vWidth / 2) - padding - (gap / 2) : vWidth - padding;
+    const availableHeight = vHeight - padding;
+
+    const scale = Math.min(availableWidth / imageMetadata.w, availableHeight / imageMetadata.h);
+    const zoomPercent = Math.floor(scale * 100);
+    
+    setZoomLevel(Math.min(400, Math.max(10, zoomPercent)));
+    setPanOffset({ x: 0, y: 0 });
+  }, [imageMetadata.w, imageMetadata.h, isCompareMode, setZoomLevel]);
+
+  // Auto-fit on image load or compare toggle
+  useEffect(() => {
+    if (currentImage) {
+      // Small delay to ensure clientWidth is updated if viewport just appeared
+      const timer = setTimeout(autoFit, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [currentImage, originalUrl, isCompareMode, autoFit]);
 
   const handleMouseMove = (e) => {
     if (!imgRef.current || !currentImage) return;
@@ -88,6 +119,14 @@ export default function Canvas() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedTool, cropRect, currentImage, zoomLevel, executeOp, setCropRect]);
 
+  const imgStyle = { 
+    width: `${(imageMetadata.w || 0) * (zoomLevel / 100)}px`,
+    height: `${(imageMetadata.h || 0) * (zoomLevel / 100)}px`,
+    transition: 'none',
+    display: 'block',
+    userSelect: 'none'
+  };
+
   return (
     <div className="canvas">
       {currentImage ? (
@@ -110,34 +149,47 @@ export default function Canvas() {
             }}
           >
             <div style={{ 
-              position: 'relative',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: isCompareMode ? '20px' : '0',
+              height: '100%',
               transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
               transition: isDragging ? 'none' : 'transform 0.1s'
             }}>
-              <img 
-                ref={imgRef}
-                src={currentImage} 
-                alt="canvas" 
-                draggable="false"
-                style={{ 
-                  width: `${(imageMetadata.w || 0) * (zoomLevel / 100)}px`,
-                  height: `${(imageMetadata.h || 0) * (zoomLevel / 100)}px`,
-                  transition: 'none',
-                  display: 'block',
-                  userSelect: 'none'
-                }}
-              />
-              {cropRect && (
-                <div 
-                  className="crop-overlay" 
-                  style={{
-                    left: cropRect.x,
-                    top: cropRect.y,
-                    width: cropRect.width,
-                    height: cropRect.height
-                  }}
-                />
+              {isCompareMode && (
+                <div className="image-container before">
+                  <div className="image-label">BEFORE</div>
+                  <img 
+                    src={originalUrl} 
+                    alt="before" 
+                    draggable="false"
+                    style={imgStyle}
+                  />
+                </div>
               )}
+              
+              <div className="image-container after" style={{ position: 'relative' }}>
+                {isCompareMode && <div className="image-label">AFTER</div>}
+                <img 
+                  ref={imgRef}
+                  src={currentImage} 
+                  alt="after" 
+                  draggable="false"
+                  style={imgStyle}
+                />
+                {cropRect && (
+                  <div 
+                    className="crop-overlay" 
+                    style={{
+                      left: cropRect.x,
+                      top: cropRect.y,
+                      width: cropRect.width,
+                      height: cropRect.height
+                    }}
+                  />
+                )}
+              </div>
             </div>
             
             {isLoading && (
@@ -153,9 +205,18 @@ export default function Canvas() {
           </div>
 
           <div className="canvas-controls">
+            <button 
+              className={isCompareMode ? 'active' : ''} 
+              onClick={() => setIsCompareMode(!isCompareMode)}
+              title="Toggle Before/After Comparison"
+            >
+              {isCompareMode ? 'Hide Split' : 'Compare'}
+            </button>
+            <div className="separator"></div>
             <button onClick={() => handleZoom(-25)} title="Zoom Out">-</button>
             <span>{zoomLevel}%</span>
             <button onClick={() => handleZoom(25)} title="Zoom In">+</button>
+            <button onClick={autoFit} title="Fit to Screen">Fit</button>
             <button onClick={() => setPanOffset({ x: 0, y: 0 })} title="Reset Pan">⌖</button>
           </div>
         </>
@@ -165,3 +226,4 @@ export default function Canvas() {
     </div>
   );
 }
+
