@@ -18,6 +18,7 @@ export function useApi() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastHeaders, setLastHeaders] = useState(null);
 
   // High performance flow control
   const activeRequest = useRef(null);
@@ -40,7 +41,8 @@ export function useApi() {
     setError(null);
 
     try {
-      const resultBlob = await apiFn(baseBlob, ...args);
+      const { blob: resultBlob, headers } = await apiFn(baseBlob, ...args);
+      setLastHeaders(headers);
       const newImageUrl = URL.createObjectURL(resultBlob);
       
       setCurrentImage(newImageUrl);
@@ -61,7 +63,7 @@ export function useApi() {
     } finally {
       setIsLoading(false);
     }
-  }, [appliedOps, history, historyIndex, setCurrentImage, setOriginalUrl, setAppliedOps, setHistory, setHistoryIndex, addToast]);
+  }, [appliedOps, history, historyIndex, setCurrentImage, setAppliedOps, setHistory, setHistoryIndex, addToast]);
 
   const previewOp = useCallback(async (baseBlob, apiFn, ...args) => {
     if (!baseBlob) return;
@@ -76,7 +78,8 @@ export function useApi() {
     const run = async (blob, fn, fnArgs) => {
       activeRequest.current = true;
       try {
-        const resultBlob = await fn(blob, ...fnArgs);
+        const { blob: resultBlob, headers } = await fn(blob, ...fnArgs);
+        setLastHeaders(headers);
         const newImageUrl = URL.createObjectURL(resultBlob);
         setCurrentImage(newImageUrl);
       } catch (err) {
@@ -95,5 +98,5 @@ export function useApi() {
     run(baseBlob, apiFn, args);
   }, [setCurrentImage]);
 
-  return { executeOp, previewOp, isLoading, error };
+  return { executeOp, previewOp, isLoading, error, lastHeaders };
 }

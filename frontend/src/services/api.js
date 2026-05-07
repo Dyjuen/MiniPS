@@ -15,7 +15,11 @@ const postBinaryOp = async (endpoint, blob, headers = {}) => {
     throw new Error(errorText || `HTTP Error ${response.status}`);
   }
 
-  return await response.blob();
+  const resultBlob = await response.blob();
+  return {
+    blob: resultBlob,
+    headers: response.headers
+  };
 };
 
 // Enhancement
@@ -138,12 +142,17 @@ export const getHistogramData = (blob, mode = 'grayscale') =>
   });
 
 // Compression
-export const applyJpegSim = (blob, quality) => 
+export const applyJpegSim = (blob, quality, targetWidth = 0, targetHeight = 0) => 
   postBinaryOp('/compress/jpeg', blob, {
-    'X-MiniPS-Quality': quality.toString()
+    'X-MiniPS-Quality': quality.toString(),
+    'X-MiniPS-Target-W': targetWidth.toString(),
+    'X-MiniPS-Target-H': targetHeight.toString()
   });
 
-export const applyEncode = (blob, method) => 
+export const applyEncode = (blob, method, format = 'jpeg', bits = 4, quality = 85) => 
   postBinaryOp('/compress/encode', blob, {
-    'X-MiniPS-Method': method
+    'X-MiniPS-Method': method,
+    'X-MiniPS-Format': format,
+    'X-MiniPS-Bits': bits.toString(),
+    'X-MiniPS-Quality': quality.toString()
   });

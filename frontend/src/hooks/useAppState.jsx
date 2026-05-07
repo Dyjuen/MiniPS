@@ -29,6 +29,7 @@ export function AppProvider({ children }) {
   const [proxyBlob, setProxyBlob] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [resetSignal, setResetSignal] = useState(0);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Stable URL for the base proxy
   const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
@@ -119,7 +120,8 @@ export function AppProvider({ children }) {
     selectedTool, setSelectedTool,
     handleLoadImage,
     handleReset,
-    handleZoom
+    handleZoom,
+    isExportModalOpen, setIsExportModalOpen
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

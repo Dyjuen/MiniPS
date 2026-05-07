@@ -11,7 +11,7 @@ export default function Histogram() {
 
     const fetchHistogram = async () => {
       try {
-        const blob = await api.getHistogramData(proxyBlob, 'grayscale');
+        const { blob } = await api.getHistogramData(proxyBlob, 'grayscale');
         const url = URL.createObjectURL(blob);
         setChartUrl(url);
       } catch (err) {

@@ -12,7 +12,8 @@ export default function MenuBar() {
     historyIndex,
     setHistoryIndex,
     setCurrentImage,
-    addToast
+    addToast,
+    setIsExportModalOpen
   } = useAppState();
 
   const fileInputRef = useRef(null);
@@ -22,12 +23,16 @@ export default function MenuBar() {
       label: 'File',
       items: [
         { label: 'Open', action: () => fileInputRef.current.click() },
-        { label: 'Save', action: () => {
+        { label: 'Save (Original)', action: () => {
           if (!currentImage) return addToast('No image to save', 'error');
           const link = document.createElement('a');
           link.href = currentImage;
           link.download = 'image.png';
           link.click();
+        }},
+        { label: 'Export...', action: () => {
+          if (!currentImage) return addToast('No image to export', 'error');
+          setIsExportModalOpen(true);
         }},
         { label: 'Reset', action: handleReset },
       ]
@@ -55,7 +60,6 @@ export default function MenuBar() {
     { label: 'Transform', action: () => setActiveTab('Enhance') }, // Shared for now
     { label: 'Color', action: () => setActiveTab('Restore') },
     { label: 'Segment', action: () => setActiveTab('Edge') },
-    { label: 'Compress', action: () => setActiveTab('More') },
   ];
 
   return (

@@ -5,15 +5,32 @@ import zlib
 from PIL import Image
 from dahuffman import HuffmanCodec
 
-def compress_jpeg_sim(image_ndarray, quality=50):
-    """Simulate JPEG compression by encoding and decoding"""
-    # Use existing image_utils or PIL directly
-    img = Image.fromarray(image_ndarray)
+def compress_jpeg_sim(image_ndarray, quality=50, target_w=0, target_h=0):
+    """Simulate JPEG compression by encoding and decoding at a specific target resolution"""
+    h, w = image_ndarray.shape[:2]
+    
+    # If target resolution is provided and significantly larger, simulate at that resolution
+    # to make the 8x8 blocks appear at the correct relative size.
+    use_res_sim = target_w > 0 and target_h > 0 and (target_w > w or target_h > h)
+    
+    if use_res_sim:
+        # Upscale to target resolution using OpenCV for speed
+        img_target = cv2.resize(image_ndarray, (target_w, target_h), interpolation=cv2.INTER_LINEAR)
+        img = Image.fromarray(img_target)
+    else:
+        img = Image.fromarray(image_ndarray)
+        
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=quality)
     buf.seek(0)
     img_decompressed = Image.open(buf)
-    return np.array(img_decompressed)
+    res_np = np.array(img_decompressed)
+    
+    if use_res_sim:
+        # Downscale back to proxy size using INTER_AREA for high-quality reduction
+        return cv2.resize(res_np, (w, h), interpolation=cv2.INTER_AREA)
+    
+    return res_np
 
 def rle_encode(data):
     """Simple RLE encoding on bytes"""
@@ -89,8 +106,9 @@ def encode_image(image_ndarray, method="huffman", params=None):
         # Size doesn't change for raw bytes, but information entropy does.
         # Simulation: pretend it's packed.
         comp_size = int(orig_size * (bits / 8.0))
+        comp_bytes = decompressed_bytes # For quantization, the "raw" export is just the quantized pixels
         
     result_img = np.frombuffer(decompressed_bytes, dtype=np.uint8).reshape(orig_shape)
     ratio = orig_size / comp_size if comp_size > 0 else 1
     
-    return result_img, orig_size, comp_size, ratio
+    return result_img, orig_size, comp_size, ratio, comp_bytes

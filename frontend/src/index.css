@@ -704,3 +704,8 @@ button:active {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+@keyframes loading-slide {
+  from { left: -50%; }
+  to { left: 100%; }
+}

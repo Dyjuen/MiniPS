@@ -3,12 +3,11 @@ import { useAppState } from '../../hooks/useAppState';
 import EnhanceTab from './tabs/EnhanceTab';
 import RestoreTab from './tabs/RestoreTab';
 import EdgeTab from './tabs/EdgeTab';
-import MoreTab from './tabs/MoreTab';
 
 export default function LeftPanel() {
   const { activeTab, setActiveTab } = useAppState();
 
-  const tabs = ['Enhance', 'Restore', 'Edge', 'More'];
+  const tabs = ['Enhance', 'Restore', 'Edge'];
 
   const handleTabChange = (newTab) => {
     if (activeTab === newTab) return;
@@ -32,7 +31,6 @@ export default function LeftPanel() {
         {activeTab === 'Enhance' && <EnhanceTab />}
         {activeTab === 'Restore' && <RestoreTab />}
         {activeTab === 'Edge' && <EdgeTab />}
-        {activeTab === 'More' && <MoreTab />}
       </div>
     </div>
   );

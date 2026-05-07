@@ -6,12 +6,14 @@ import LeftPanel from './components/LeftPanel/LeftPanel';
 import Canvas from './components/Canvas';
 import RightPanel from './components/RightPanel/RightPanel';
 import StatusBar from './components/StatusBar';
+import ExportModal from './components/ExportModal';
 
 function AppContent() {
   const { toasts } = useAppState();
 
   return (
     <div className="app-container">
+      <ExportModal />
       <MenuBar />
       <Toolbar />
       <div className="main-content">
