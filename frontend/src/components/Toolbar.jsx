@@ -8,7 +8,6 @@ export default function Toolbar() {
     currentImage,
     setCurrentImage,
     fullResBlob,
-    handleLoadImage, 
     handleReset, 
     handleZoom,
     history,
@@ -27,15 +26,6 @@ export default function Toolbar() {
   } = useAppState();
 
   const { executeOp } = useApi();
-  const fileInputRef = useRef(null);
-
-  const handleSave = () => {
-    if (!currentImage) return addToast('No image to save', 'error');
-    const link = document.createElement('a');
-    link.href = currentImage;
-    link.download = 'processed_image.png';
-    link.click();
-  };
 
   const toggleCrop = () => {
     if (selectedTool === 'crop') {
@@ -66,8 +56,6 @@ export default function Toolbar() {
   };
 
   const buttons = [
-    { label: 'Load', action: () => fileInputRef.current.click(), title: 'Load Image' },
-    { label: 'Save', action: handleSave, title: 'Save Image' },
     { 
       label: 'Crop', 
       action: toggleCrop, 
@@ -86,8 +74,6 @@ export default function Toolbar() {
       title: 'Move Tool (V)',
       className: selectedTool === 'move' ? 'active' : '' 
     },
-    { label: 'Zoom+', action: () => handleZoom(25), title: 'Zoom In' },
-    { label: 'Zoom-', action: () => handleZoom(-25), title: 'Zoom Out' },
     { 
       label: 'Rotate CW', 
       action: () => {
@@ -121,20 +107,11 @@ export default function Toolbar() {
       }, 
       title: 'Flip Vertical' 
     },
-    { label: 'Undo', action: undo, title: 'Undo (Ctrl+Z)' },
-    { label: 'Redo', action: redo, title: 'Redo (Ctrl+Y)' },
     { label: 'Reset', action: handleReset, className: 'btn-danger', title: 'Reset to Original' },
   ];
 
   return (
     <div className="toolbar">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        style={{ display: 'none' }} 
-        accept="image/*"
-        onChange={(e) => e.target.files[0] && handleLoadImage(e.target.files[0])}
-      />
       {buttons.map((btn, i) => (
         <button 
           key={i} 

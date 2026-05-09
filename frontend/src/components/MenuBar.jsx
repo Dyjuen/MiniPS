@@ -45,10 +45,6 @@ export default function MenuBar() {
         { label: 'Redo', action: redo },
       ]
     },
-    { label: 'Filter', action: () => setActiveTab('Enhance') },
-    { label: 'Transform', action: () => setActiveTab('Enhance') }, // Shared for now
-    { label: 'Color', action: () => setActiveTab('Restore') },
-    { label: 'Segment', action: () => setActiveTab('Edge') },
   ];
 
   return (
