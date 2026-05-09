@@ -709,3 +709,79 @@ button:active {
   from { left: -50%; }
   to { left: 100%; }
 }
+/* Transform Overlay & Floating Action Bar */
+.transform-overlay {
+  position: absolute;
+  border: 1px solid #378ADD;
+  box-sizing: border-box;
+  z-index: 15;
+}
+
+.transform-knob {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #378ADD;
+  border: 2px solid white;
+  border-radius: 50%;
+  cursor: grab;
+  transform: translateX(-50%);
+}
+
+.transform-knob::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 1px;
+  height: 16px;
+  background: white;
+  transform: translateX(-50%);
+}
+
+.action-bar {
+  position: absolute;
+  bottom: -45px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 20;
+}
+
+.action-btn {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 2px;
+}
+
+.action-btn.apply {
+  background: #378ADD;
+  color: white;
+}
+
+.action-btn.cancel {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #444;
+}
+
+.canvas-boundary {
+  position: absolute;
+  border: 2px solid rgba(55, 138, 221, 0.3);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Update cursors */
+.cursor-rotate { cursor: grabbing !important; }
+.cursor-nwse { cursor: nwse-resize !important; }
+.cursor-nesw { cursor: nesw-resize !important; }

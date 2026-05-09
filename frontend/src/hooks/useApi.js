@@ -48,12 +48,6 @@ export function useApi() {
       setCurrentImage(newImageUrl);
       setAppliedOps([...appliedOps, opName]);
       
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newImageUrl);
-      if (newHistory.length > 11) newHistory.shift();
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-
       return resultBlob;
     } catch (err) {
       if (err.name === 'AbortError') return;

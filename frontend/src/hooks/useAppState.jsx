@@ -21,6 +21,15 @@ export function AppProvider({ children }) {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [cropRect, setCropRect] = useState(null);
   const [selectedTool, setSelectedTool] = useState('move');
+  const [transformParams, setTransformParams] = useState({
+    scaleX: 1,
+    scaleY: 1,
+    rotate: 0,
+    tx: 0,
+    ty: 0,
+    flipH: false,
+    flipV: false
+  });
 
   const [originalBlob, setOriginalBlob] = useState(null);
   const [originalUrl, setOriginalUrl] = useState(null);
@@ -59,21 +68,22 @@ export function AppProvider({ children }) {
     setFullResBlob(file);
     setAppliedOps([]);
     setZoomLevel(100);
-    setHistory([url]);
-    setHistoryIndex(0);
     setIsCompareMode(false);
 
     const img = new Image();
     img.onload = () => {
-      setImageMetadata({
+      const metadata = {
         filename: file.name,
         resolution: `${img.width}x${img.height}`,
         w: img.width,
         h: img.height,
         format: file.type,
         fileSize: `${(file.size / 1024).toFixed(1)} KB`
-      });
+      };
+      setImageMetadata(metadata);
       createProxy(img);
+      setHistory([{ url, blob: file, metadata }]);
+      setHistoryIndex(0);
     };
     img.src = url;
   };
@@ -89,13 +99,85 @@ export function AppProvider({ children }) {
       setIsCompareMode(false);
       
       const img = new Image();
-      img.onload = () => createProxy(img);
+      img.onload = () => {
+        const metadata = {
+          filename: originalBlob.name,
+          resolution: `${img.width}x${img.height}`,
+          w: img.width,
+          h: img.height,
+          format: originalBlob.type,
+          fileSize: `${(originalBlob.size / 1024).toFixed(1)} KB`
+        };
+        setImageMetadata(metadata);
+        createProxy(img);
+        setHistory([{ url, blob: originalBlob, metadata }]);
+        setHistoryIndex(0);
+      };
       img.src = url;
     }
   };
 
   const handleZoom = (delta) => {
     setZoomLevel(prev => Math.min(400, Math.max(25, prev + delta)));
+  };
+
+  const undo = () => {
+    if (historyIndex > 0) {
+      const idx = historyIndex - 1;
+      const state = history[idx];
+      setHistoryIndex(idx);
+      setCurrentImage(state.url);
+      setFullResBlob(state.blob);
+      setImageMetadata(state.metadata);
+      
+      const img = new Image();
+      img.onload = () => createProxy(img);
+      img.src = state.url;
+      addToast('Undo applied');
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const idx = historyIndex + 1;
+      const state = history[idx];
+      setHistoryIndex(idx);
+      setCurrentImage(state.url);
+      setFullResBlob(state.blob);
+      setImageMetadata(state.metadata);
+
+      const img = new Image();
+      img.onload = () => createProxy(img);
+      img.src = state.url;
+      addToast('Redo applied');
+    }
+  };
+
+  const applyEditedBlob = (blob) => {
+    setFullResBlob(blob);
+    const url = URL.createObjectURL(blob);
+    
+    const img = new Image();
+    img.onload = () => {
+      const metadata = {
+        ...imageMetadata,
+        resolution: `${img.width}x${img.height}`,
+        w: img.width,
+        h: img.height,
+        fileSize: `${(blob.size / 1024).toFixed(1)} KB`
+      };
+      setImageMetadata(metadata);
+      createProxy(img);
+
+      const newHistory = history.slice(0, historyIndex + 1);
+      newHistory.push({ url, blob, metadata });
+      if (newHistory.length > 11) newHistory.shift();
+      
+      setHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    };
+    img.src = url;
+    setCurrentImage(url);
   };
 
   const value = {
@@ -118,10 +200,14 @@ export function AppProvider({ children }) {
     resetSignal,
     cropRect, setCropRect,
     selectedTool, setSelectedTool,
+    transformParams, setTransformParams,
     handleLoadImage,
     handleReset,
     handleZoom,
-    isExportModalOpen, setIsExportModalOpen
+    isExportModalOpen, setIsExportModalOpen,
+    applyEditedBlob,
+    undo,
+    redo
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

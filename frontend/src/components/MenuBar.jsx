@@ -10,7 +10,8 @@ export default function MenuBar() {
     activeTab,
     history,
     historyIndex,
-    setHistoryIndex,
+    undo,
+    redo,
     setCurrentImage,
     addToast,
     setIsExportModalOpen
@@ -40,20 +41,8 @@ export default function MenuBar() {
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', action: () => {
-          if (historyIndex > 0) {
-            const idx = historyIndex - 1;
-            setHistoryIndex(idx);
-            setCurrentImage(history[idx]);
-          }
-        }},
-        { label: 'Redo', action: () => {
-          if (historyIndex < history.length - 1) {
-            const idx = historyIndex + 1;
-            setHistoryIndex(idx);
-            setCurrentImage(history[idx]);
-          }
-        }},
+        { label: 'Undo', action: undo },
+        { label: 'Redo', action: redo },
       ]
     },
     { label: 'Filter', action: () => setActiveTab('Enhance') },

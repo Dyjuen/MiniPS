@@ -5,7 +5,7 @@ import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
 
 export default function RestoreTab() {
-  const { proxyBlob, proxyUrl, fullResBlob, setFullResBlob, setProxyBlob, setCurrentImage, addToast, resetSignal } = useAppState();
+  const { proxyBlob, proxyUrl, fullResBlob, setCurrentImage, addToast, resetSignal, applyEditedBlob } = useAppState();
   const { executeOp, previewOp, isLoading } = useApi();
 
   const [gBlur, setGBlur] = useState(0);
@@ -60,21 +60,6 @@ export default function RestoreTab() {
     }
   }, [hue, sat, proxyBlob, proxyUrl, setCurrentImage]);
 
-  const updateBlobs = (newFullResBlob) => {
-    setFullResBlob(newFullResBlob);
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
-    };
-    img.src = URL.createObjectURL(newFullResBlob);
-    setCurrentImage(img.src);
-  };
-
   const handleApply = async () => {
     if (!fullResBlob) return;
     let result = fullResBlob;
@@ -83,8 +68,8 @@ export default function RestoreTab() {
     if (noise > 0) result = await executeOp('Denoise', api.applyDenoise, result, noiseMethod, noise);
     if (hue !== 0 || sat !== 0) result = await executeOp('Color Adjust', api.applyColorAdjust, result, hue, sat);
 
-    if (result) {
-      updateBlobs(result);
+    if (result && result !== fullResBlob) {
+      applyEditedBlob(result);
       setGBlur(0); setMFilter(0); setNoise(0); setHue(0); setSat(0);
       addToast('Applied to full resolution', 'success');
     }
@@ -117,8 +102,8 @@ export default function RestoreTab() {
       <section>
         <h4>Color processing</h4>
         <div className="btn-group">
-          <button onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) updateBlobs(res); }}>Grayscale</button>
-          <button onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) updateBlobs(res); }}>Split R</button>
+          <button onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) applyEditedBlob(res); }}>Grayscale</button>
+          <button onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) applyEditedBlob(res); }}>Split R</button>
         </div>
         <SliderControl label="Hue" min={-180} max={180} value={hue} unit="°" onChange={setHue} />
         <SliderControl label="Saturation" min={-100} max={100} value={sat} onChange={setSat} />

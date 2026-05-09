@@ -9,11 +9,10 @@ export default function EdgeTab() {
     proxyBlob, 
     proxyUrl,
     fullResBlob, 
-    setFullResBlob, 
-    setProxyBlob, 
     setCurrentImage,
     addToast,
-    resetSignal
+    resetSignal,
+    applyEditedBlob
   } = useAppState();
   
   const { executeOp, previewOp, isLoading } = useApi();
@@ -39,26 +38,11 @@ export default function EdgeTab() {
     }
   }, [threshold, proxyBlob, proxyUrl, setCurrentImage]);
 
-  const updateBlobs = (newFullResBlob) => {
-    setFullResBlob(newFullResBlob);
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
-    };
-    img.src = URL.createObjectURL(newFullResBlob);
-    setCurrentImage(img.src);
-  };
-
   const handleApplyThreshold = async () => {
     if (!fullResBlob) return;
     const result = await executeOp('Threshold', api.applyThreshold, fullResBlob, threshold);
     if (result) {
-      updateBlobs(result);
+      applyEditedBlob(result);
       setThreshold(128);
     }
   };
@@ -68,7 +52,7 @@ export default function EdgeTab() {
     const fn = segMethod === 'threshold' ? api.applySegThreshold : api.applySegEdge;
     const arg = segMethod === 'threshold' ? 127 : 'canny';
     const result = await executeOp('Segmentation', fn, fullResBlob, arg);
-    if (result) updateBlobs(result);
+    if (result) applyEditedBlob(result);
   };
 
   return (
@@ -94,7 +78,7 @@ export default function EdgeTab() {
         </div>
         <button className="btn-block" onClick={async () => {
           const res = await executeOp('Edge Detection', api.applyEdge, fullResBlob, edgeMethod);
-          if (res) updateBlobs(res);
+          if (res) applyEditedBlob(res);
         }}>Apply Edge</button>
       </section>
 
@@ -104,11 +88,11 @@ export default function EdgeTab() {
         <div className="btn-group">
           <button onClick={async () => {
             const res = await executeOp('Erosion', api.applyMorphology, fullResBlob, 'erosion', morphKernel);
-            if (res) updateBlobs(res);
+            if (res) applyEditedBlob(res);
           }}>Erosion</button>
           <button onClick={async () => {
             const res = await executeOp('Dilation', api.applyMorphology, fullResBlob, 'dilation', morphKernel);
-            if (res) updateBlobs(res);
+            if (res) applyEditedBlob(res);
           }}>Dilation</button>
         </div>
       </section>

@@ -55,10 +55,12 @@ export const applyFlip = (blob, direction) =>
 
 export const applyCrop = (blob, x, y, width, height) => 
   postBinaryOp('/transform/crop', blob, {
-    'X-MiniPS-X': x.toString(),
-    'X-MiniPS-Y': y.toString(),
-    'X-MiniPS-Width': width.toString(),
-    'X-MiniPS-Height': height.toString()
+    'X-MiniPS-Val': JSON.stringify({ x, y, width, height })
+  });
+
+export const applyGeometryTransform = (blob, params) => 
+  postBinaryOp('/transform/geometry', blob, {
+    'X-MiniPS-Val': JSON.stringify(params)
   });
 
 export const applyResize = (blob, width, height, interpolation = 'bilinear') => 

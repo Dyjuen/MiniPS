@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
+import TransformOverlay from './TransformOverlay';
+import CropOverlay from './CropOverlay';
 
 export default function Canvas() {
   const { 
@@ -16,8 +18,13 @@ export default function Canvas() {
     cropRect,
     setCropRect,
     selectedTool,
+    setSelectedTool,
     isCompareMode,
     setIsCompareMode,
+    transformParams,
+    setTransformParams,
+    fullResBlob,
+    applyEditedBlob
   } = useAppState();
   
   const { executeOp, isLoading, error } = useApi();
@@ -98,33 +105,51 @@ export default function Canvas() {
     setIsDragging(false);
   };
 
-  // Keyboard shortcut for Enter to crop
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Enter' && selectedTool === 'crop' && cropRect && currentImage) {
-        // Map viewport crop coords back to image coords
-        const rect = imgRef.current.getBoundingClientRect();
-        const imgScale = zoomLevel / 100;
-        
-        const realX = Math.floor((cropRect.x - (rect.left - viewportRef.current.getBoundingClientRect().left)) / imgScale);
-        const realY = Math.floor((cropRect.y - (rect.top - viewportRef.current.getBoundingClientRect().top)) / imgScale);
-        const realW = Math.floor(cropRect.width / imgScale);
-        const realH = Math.floor(cropRect.height / imgScale);
+  const handleApplyCrop = useCallback(async () => {
+    if (!cropRect || !currentImage) return;
+    const res = await executeOp('Crop', api.applyCrop, fullResBlob, 
+      Math.floor(cropRect.x), 
+      Math.floor(cropRect.y), 
+      Math.floor(cropRect.width), 
+      Math.floor(cropRect.height)
+    );
+    if (res) applyEditedBlob(res);
+    setCropRect(null);
+    setSelectedTool('move');
+  }, [cropRect, currentImage, executeOp, setCropRect, setSelectedTool, fullResBlob, applyEditedBlob]);
 
-        executeOp('Crop', api.applyCrop, realX, realY, realW, realH);
-        setCropRect(null);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTool, cropRect, currentImage, zoomLevel, executeOp, setCropRect]);
+  const handleApplyTransform = useCallback(async () => {
+    if (!transformParams || !currentImage) return;
+    const res = await executeOp('Transform', api.applyGeometryTransform, fullResBlob, transformParams);
+    if (res) applyEditedBlob(res);
+    setTransformParams({ scaleX: 1, scaleY: 1, rotate: 0, tx: 0, ty: 0, flipH: false, flipV: false });
+    setSelectedTool('move');
+  }, [transformParams, currentImage, executeOp, setTransformParams, setSelectedTool, fullResBlob, applyEditedBlob]);
+
+  const handleCancel = useCallback(() => {
+    setCropRect(null);
+    setTransformParams({ scaleX: 1, scaleY: 1, rotate: 0, tx: 0, ty: 0, flipH: false, flipV: false });
+    setSelectedTool('move');
+  }, [setCropRect, setTransformParams, setSelectedTool]);
+
+  // Handle auto-reset zoom on fit
+
+  const isTransform = selectedTool === 'transform';
+  const flipX = transformParams.flipH ? -1 : 1;
+  const flipY = transformParams.flipV ? -1 : 1;
 
   const imgStyle = { 
     width: `${(imageMetadata.w || 0) * (zoomLevel / 100)}px`,
     height: `${(imageMetadata.h || 0) * (zoomLevel / 100)}px`,
     transition: 'none',
     display: 'block',
-    userSelect: 'none'
+    userSelect: 'none',
+    transformOrigin: 'center center',
+    transform: isTransform ? `
+      translate(${transformParams.tx * (zoomLevel / 100)}px, ${transformParams.ty * (zoomLevel / 100)}px)
+      rotate(${transformParams.rotate}deg)
+      scale(${transformParams.scaleX * flipX}, ${transformParams.scaleY * flipY})
+    ` : 'none'
   };
 
   return (
@@ -178,14 +203,31 @@ export default function Canvas() {
                   draggable="false"
                   style={imgStyle}
                 />
-                {cropRect && (
+                {selectedTool === 'crop' && cropRect && (
+                  <CropOverlay 
+                    imgRect={{ width: imageMetadata.w, height: imageMetadata.h }}
+                    zoom={zoomLevel}
+                    onApply={handleApplyCrop}
+                    onCancel={handleCancel}
+                  />
+                )}
+                {selectedTool === 'transform' && (
+                  <TransformOverlay 
+                    imgRect={{ width: imageMetadata.w, height: imageMetadata.h }}
+                    zoom={zoomLevel}
+                    onApply={handleApplyTransform}
+                    onCancel={handleCancel}
+                  />
+                )}
+                {/* Canvas Boundary Indicator */}
+                {(selectedTool === 'crop' || selectedTool === 'transform') && (
                   <div 
-                    className="crop-overlay" 
+                    className="canvas-boundary"
                     style={{
-                      left: cropRect.x,
-                      top: cropRect.y,
-                      width: cropRect.width,
-                      height: cropRect.height
+                      left: 0,
+                      top: 0,
+                      width: imageMetadata.w * (zoomLevel/100),
+                      height: imageMetadata.h * (zoomLevel/100)
                     }}
                   />
                 )}

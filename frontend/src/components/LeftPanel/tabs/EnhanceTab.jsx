@@ -11,8 +11,7 @@ export default function EnhanceTab() {
     proxyBlob, 
     proxyUrl,
     fullResBlob,
-    setFullResBlob,
-    setProxyBlob
+    applyEditedBlob
   } = useAppState();
   
   const { executeOp, previewOp, isLoading } = useApi();
@@ -61,21 +60,6 @@ export default function EnhanceTab() {
     }
   }, [smoothing, proxyBlob, proxyUrl, setCurrentImage]);
 
-  const updateBlobs = (newFullResBlob) => {
-    setFullResBlob(newFullResBlob);
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((b) => setProxyBlob(b), 'image/jpeg', 0.9);
-    };
-    img.src = URL.createObjectURL(newFullResBlob);
-    setCurrentImage(img.src);
-  };
-
   const handleApply = async () => {
     if (!fullResBlob) return;
     let resultBlob = fullResBlob;
@@ -92,8 +76,8 @@ export default function EnhanceTab() {
       resultBlob = await executeOp('Smoothing', api.applySmooth, resultBlob, kernel);
     }
 
-    if (resultBlob) {
-      updateBlobs(resultBlob);
+    if (resultBlob && resultBlob !== fullResBlob) {
+      applyEditedBlob(resultBlob);
       setBrightness(0); setContrast(0); setSharpness(0); setSmoothing(0);
       addToast('Applied to full resolution', 'success');
     }
@@ -108,7 +92,10 @@ export default function EnhanceTab() {
         <SliderControl label="Sharpness" min={0} max={100} value={sharpness} onChange={setSharpness} />
         <SliderControl label="Smoothing" min={0} max={100} value={smoothing} onChange={setSmoothing} />
         <div className="btn-group">
-          <button onClick={() => executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob)}>Histogram Eq.</button>
+          <button onClick={async () => {
+            const res = await executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob);
+            if (res) applyEditedBlob(res);
+          }}>Histogram Eq.</button>
         </div>
       </section>
 

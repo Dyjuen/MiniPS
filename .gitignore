@@ -18,3 +18,4 @@ Thumbs.db
 # Project
 backend/processing/ml/models/*
 !backend/processing/ml/models/.gitkeep
+dev.sh
