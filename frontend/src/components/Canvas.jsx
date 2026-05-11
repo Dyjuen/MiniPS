@@ -35,6 +35,8 @@ export default function Canvas() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDrawingCrop, setIsDrawingCrop] = useState(false);
+  const [drawStartPos, setDrawStartPos] = useState({ x: 0, y: 0 });
 
   // Pinch state
   const [pinchStartDist, setPinchStartDist] = useState(null);
@@ -73,23 +75,40 @@ export default function Canvas() {
     if (!imgRef.current || !currentImage) return;
     
     const rect = imgRef.current.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / (zoomLevel / 100));
-    const y = Math.floor((e.clientY - rect.top) / (zoomLevel / 100));
+    const rawX = (e.clientX - rect.left) / (zoomLevel / 100);
+    const rawY = (e.clientY - rect.top) / (zoomLevel / 100);
+    const x = Math.floor(rawX);
+    const y = Math.floor(rawY);
     
     setCursorPos({ x, y });
     
-    if (isDragging) {
+    if (isDrawingCrop) {
+      const dx = rawX - drawStartPos.x;
+      const dy = rawY - drawStartPos.y;
+      
+      let width = Math.abs(dx);
+      let height = Math.abs(dy);
+      
+      if (e.shiftKey) {
+        const size = Math.max(width, height);
+        width = size;
+        height = size;
+      }
+
+      let newX = dx < 0 ? drawStartPos.x - width : drawStartPos.x;
+      let newY = dy < 0 ? drawStartPos.y - height : drawStartPos.y;
+
+      newX = Math.max(0, Math.min(newX, imageMetadata.w - 1));
+      newY = Math.max(0, Math.min(newY, imageMetadata.h - 1));
+      width = Math.max(1, Math.min(width, imageMetadata.w - newX));
+      height = Math.max(1, Math.min(height, imageMetadata.h - newY));
+
+      setCropRect({ x: newX, y: newY, width, height });
+    } else if (isDragging) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
 
-      if (selectedTool === 'crop' && cropRect) {
-        setCropRect(prev => ({
-          ...prev,
-          x: prev.x + dx,
-          y: prev.y + dy
-        }));
-        setDragStart({ x: e.clientX, y: e.clientY });
-      } else if (selectedTool === 'move') {
+      if (selectedTool === 'move') {
         setPanOffset(prev => ({
           x: prev.x + dx,
           y: prev.y + dy
@@ -101,11 +120,32 @@ export default function Canvas() {
 
   const handleMouseDown = (e) => {
     if (!currentImage) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
+    
+    if (selectedTool === 'crop') {
+      const rect = imgRef.current.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left) / (zoomLevel / 100);
+      const rawY = (e.clientY - rect.top) / (zoomLevel / 100);
+
+      const startX = Math.max(0, Math.min(rawX, imageMetadata.w));
+      const startY = Math.max(0, Math.min(rawY, imageMetadata.h));
+
+      setIsDrawingCrop(true);
+      setDrawStartPos({ x: startX, y: startY });
+      setCropRect({ x: startX, y: startY, width: 0, height: 0 });
+    } else {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+    }
   };
 
   const handleMouseUp = () => {
+    if (isDrawingCrop) {
+      setIsDrawingCrop(false);
+      setCropRect(prev => {
+        if (prev && (prev.width < 10 || prev.height < 10)) return null;
+        return prev;
+      });
+    }
     setIsDragging(false);
   };
 

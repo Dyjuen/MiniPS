@@ -43,8 +43,8 @@ export default function Toolbar() {
     } else {
       setSelectedTool('crop');
       setTransformParams({ scaleX: 1, scaleY: 1, rotate: 0, tx: 0, ty: 0, flipH: false, flipV: false });
-      setCropRect({ x: 50, y: 50, width: 200, height: 200 });
-      addToast('Crop mode active. Drag handles or press Enter.');
+      setCropRect(null);
+      addToast('Crop mode active. Click and drag to draw crop box.');
     }
   };
 
