@@ -48,3 +48,31 @@ def get_histogram_chart(image_ndarray, mode="grayscale"):
     buf.seek(0)
     
     return base64.b64encode(buf.getvalue()).decode('utf-8')
+def get_histogram_data(image_ndarray):
+    """Return raw histogram bins for all channels as JSON-serializable dict"""
+    if len(image_ndarray.shape) == 2:
+        # Grayscale
+        hist = cv2.calcHist([image_ndarray], [0], None, [256], [0, 256]).flatten().tolist()
+        return {
+            "all": hist,
+            "r": hist,
+            "g": hist,
+            "b": hist
+        }
+    
+    # RGB
+    # OpenCV uses BGR
+    b_hist = cv2.calcHist([image_ndarray], [0], None, [256], [0, 256]).flatten().tolist()
+    g_hist = cv2.calcHist([image_ndarray], [1], None, [256], [0, 256]).flatten().tolist()
+    r_hist = cv2.calcHist([image_ndarray], [2], None, [256], [0, 256]).flatten().tolist()
+    
+    # Calculate luminance histogram for 'all'
+    gray = cv2.cvtColor(image_ndarray, cv2.COLOR_BGR2GRAY)
+    all_hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten().tolist()
+    
+    return {
+        "all": all_hist,
+        "r": r_hist,
+        "g": g_hist,
+        "b": b_hist
+    }

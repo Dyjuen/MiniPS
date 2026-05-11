@@ -19,18 +19,26 @@ async def analyze(
     img = await get_image_from_body(request)
     loop = asyncio.get_event_loop()
     
-    # get_histogram_chart returns base64 string currently.
-    # We should probably change it to return raw bytes if we want full binary.
-    # For now, keeping as is but offloading to process pool.
     chart_b64 = await loop.run_in_executor(
         request.app.state.executor,
         get_histogram_chart,
         img, x_minips_mode
     )
     
-    # Histogram chart is a UI element (plot), keeping as base64 for easy <img> src injection 
-    # or returning as PNG bytes.
-    # Let's return as PNG bytes for consistency.
     import base64
     chart_bytes = base64.b64decode(chart_b64)
     return Response(content=chart_bytes, media_type="image/png")
+
+@router.post("/data")
+async def data(request: Request):
+    img = await get_image_from_body(request)
+    from backend.processing.histogram import get_histogram_data
+    loop = asyncio.get_event_loop()
+    
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        get_histogram_data,
+        img
+    )
+    from fastapi.responses import JSONResponse
+    return JSONResponse(content=result)

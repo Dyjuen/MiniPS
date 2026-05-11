@@ -55,3 +55,21 @@ async def adjust(
         img, x_minips_hue, x_minips_saturation
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
+
+@router.post("/levels")
+async def levels(
+    request: Request,
+    x_minips_black: int = Header(0, alias="X-MiniPS-Black"),
+    x_minips_mid: int = Header(128, alias="X-MiniPS-Mid"),
+    x_minips_white: int = Header(255, alias="X-MiniPS-White"),
+    x_minips_channel: str = Header("all", alias="X-MiniPS-Channel")
+):
+    img = await get_image_from_body(request)
+    from backend.processing.levels import apply_levels
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        request.app.state.executor,
+        apply_levels,
+        img, x_minips_black, x_minips_mid, x_minips_white, x_minips_channel
+    )
+    return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")

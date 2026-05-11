@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
 
 const AppContext = createContext();
 
@@ -39,17 +39,18 @@ export function AppProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [resetSignal, setResetSignal] = useState(0);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isLevelsModalOpen, setIsLevelsModalOpen] = useState(false);
 
   // Stable URL for the base proxy
   const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
 
-  const addToast = (message, type = 'info') => {
+  const addToast = useCallback((message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
-  };
+  }, []);
 
   const createProxy = (img) => {
     const canvas = document.createElement('canvas');
@@ -60,7 +61,7 @@ export function AppProvider({ children }) {
     canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
   };
 
-  const handleLoadImage = (file) => {
+  const handleLoadImage = useCallback((file) => {
     const url = URL.createObjectURL(file);
     setCurrentImage(url);
     setOriginalUrl(url);
@@ -86,9 +87,9 @@ export function AppProvider({ children }) {
       setHistoryIndex(0);
     };
     img.src = url;
-  };
+  }, []);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     if (originalBlob) {
       const url = URL.createObjectURL(originalBlob);
       setCurrentImage(url);
@@ -115,13 +116,13 @@ export function AppProvider({ children }) {
       };
       img.src = url;
     }
-  };
+  }, [originalBlob]);
 
-  const handleZoom = (delta) => {
+  const handleZoom = useCallback((delta) => {
     setZoomLevel(prev => Math.min(400, Math.max(25, prev + delta)));
-  };
+  }, []);
 
-  const undo = () => {
+  const undo = useCallback(() => {
     if (historyIndex > 0) {
       const idx = historyIndex - 1;
       const state = history[idx];
@@ -135,9 +136,9 @@ export function AppProvider({ children }) {
       img.src = state.url;
       addToast('Undo applied');
     }
-  };
+  }, [history, historyIndex, addToast]);
 
-  const redo = () => {
+  const redo = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const idx = historyIndex + 1;
       const state = history[idx];
@@ -151,9 +152,9 @@ export function AppProvider({ children }) {
       img.src = state.url;
       addToast('Redo applied');
     }
-  };
+  }, [history, historyIndex, addToast]);
 
-  const applyEditedBlob = (blob) => {
+  const applyEditedBlob = useCallback((blob) => {
     setFullResBlob(blob);
     const url = URL.createObjectURL(blob);
     
@@ -178,7 +179,7 @@ export function AppProvider({ children }) {
     };
     img.src = url;
     setCurrentImage(url);
-  };
+  }, [imageMetadata, history, historyIndex]);
 
   const value = {
     currentImage, setCurrentImage,
@@ -205,6 +206,7 @@ export function AppProvider({ children }) {
     handleReset,
     handleZoom,
     isExportModalOpen, setIsExportModalOpen,
+    isLevelsModalOpen, setIsLevelsModalOpen,
     applyEditedBlob,
     undo,
     redo

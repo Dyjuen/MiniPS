@@ -14,7 +14,8 @@ export default function MenuBar() {
     redo,
     setCurrentImage,
     addToast,
-    setIsExportModalOpen
+    setIsExportModalOpen,
+    setIsLevelsModalOpen
   } = useAppState();
 
   const fileInputRef = useRef(null);
@@ -43,6 +44,15 @@ export default function MenuBar() {
       items: [
         { label: 'Undo', action: undo },
         { label: 'Redo', action: redo },
+      ]
+    },
+    {
+      label: 'Image',
+      items: [
+        { label: 'Levels...', action: () => {
+          if (!currentImage) return addToast('No image to adjust', 'error');
+          setIsLevelsModalOpen(true);
+        }},
       ]
     },
   ];

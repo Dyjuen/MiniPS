@@ -143,6 +143,24 @@ export const getHistogramData = (blob, mode = 'grayscale') =>
     'X-MiniPS-Histogram-Mode': mode
   });
 
+export const getHistogramBins = async (blob) => {
+  const response = await fetch(`${API_BASE_URL}/histogram/data`, {
+    method: 'POST',
+    body: blob,
+    headers: { 'Content-Type': 'application/octet-stream' }
+  });
+  if (!response.ok) throw new Error('Failed to fetch histogram bins');
+  return response.json();
+};
+
+export const applyLevels = (blob, black, mid, white, channel = 'all') =>
+  postBinaryOp('/color/levels', blob, {
+    'X-MiniPS-Black': black.toString(),
+    'X-MiniPS-Mid': mid.toString(),
+    'X-MiniPS-White': white.toString(),
+    'X-MiniPS-Channel': channel
+  });
+
 // Compression
 export const applyJpegSim = (blob, quality, targetWidth = 0, targetHeight = 0) => 
   postBinaryOp('/compress/jpeg', blob, {

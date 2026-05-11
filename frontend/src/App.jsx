@@ -7,6 +7,7 @@ import Canvas from './components/Canvas';
 import RightPanel from './components/RightPanel/RightPanel';
 import StatusBar from './components/StatusBar';
 import ExportModal from './components/ExportModal';
+import LevelsModal from './components/LevelsModal';
 
 function AppContent() {
   const { toasts, undo, redo } = useAppState();
@@ -38,6 +39,7 @@ function AppContent() {
   return (
     <div className="app-container">
       <ExportModal />
+      <LevelsModal />
       <MenuBar />
       <Toolbar />
       <div className="main-content">
