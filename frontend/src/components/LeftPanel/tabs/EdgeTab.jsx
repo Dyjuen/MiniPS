@@ -3,6 +3,7 @@ import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
+import { Sliders, ScanLine, Layers, PieChart, Scan, Minus, Plus } from 'lucide-react';
 
 export default function EdgeTab() {
   const { 
@@ -58,13 +59,24 @@ export default function EdgeTab() {
   return (
     <div className="tab-content">
       <section>
-        <h4>Thresholding</h4>
-        <SliderControl label="Threshold" min={0} max={255} value={threshold} onChange={setThreshold} />
-        <button className="btn-block btn-primary" onClick={handleApplyThreshold} disabled={isLoading}>Apply Threshold</button>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Sliders size={12} /> Thresholding
+        </h4>
+        <SliderControl label="Threshold" min={0} max={255} value={threshold} onChange={setThreshold} defaultValue={128} />
+        <button 
+          className="btn-block btn-primary" 
+          onClick={handleApplyThreshold} 
+          disabled={isLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+        >
+          <Sliders size={13} /> Apply Threshold
+        </button>
       </section>
 
       <section>
-        <h4>Edge detection</h4>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <ScanLine size={12} /> Edge detection
+        </h4>
         <div className="select-control">
           <label>Method</label>
           <select value={edgeMethod} onChange={(e) => setEdgeMethod(e.target.value)}>
@@ -76,29 +88,49 @@ export default function EdgeTab() {
             <option value="log">LoG</option>
           </select>
         </div>
-        <button className="btn-block" onClick={async () => {
-          const res = await executeOp('Edge Detection', api.applyEdge, fullResBlob, edgeMethod);
-          if (res) applyEditedBlob(res);
-        }}>Apply Edge</button>
+        <button 
+          className="btn-block" 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          onClick={async () => {
+            const res = await executeOp('Edge Detection', api.applyEdge, fullResBlob, edgeMethod);
+            if (res) applyEditedBlob(res);
+          }}
+        >
+          <Scan size={13} /> Apply Edge
+        </button>
       </section>
 
       <section>
-        <h4>Morphology</h4>
-        <SliderControl label="Kernel size" min={3} max={15} step={2} value={morphKernel} onChange={setMorphKernel} />
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Layers size={12} /> Morphology
+        </h4>
+        <SliderControl label="Kernel size" min={3} max={15} step={2} value={morphKernel} onChange={setMorphKernel} defaultValue={3} />
         <div className="btn-group">
-          <button onClick={async () => {
-            const res = await executeOp('Erosion', api.applyMorphology, fullResBlob, 'erosion', morphKernel);
-            if (res) applyEditedBlob(res);
-          }}>Erosion</button>
-          <button onClick={async () => {
-            const res = await executeOp('Dilation', api.applyMorphology, fullResBlob, 'dilation', morphKernel);
-            if (res) applyEditedBlob(res);
-          }}>Dilation</button>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={async () => {
+              const res = await executeOp('Erosion', api.applyMorphology, fullResBlob, 'erosion', morphKernel);
+              if (res) applyEditedBlob(res);
+            }}
+          >
+            <Minus size={13} /> Erosion
+          </button>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={async () => {
+              const res = await executeOp('Dilation', api.applyMorphology, fullResBlob, 'dilation', morphKernel);
+              if (res) applyEditedBlob(res);
+            }}
+          >
+            <Plus size={13} /> Dilation
+          </button>
         </div>
       </section>
 
       <section>
-        <h4>Segmentation</h4>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <PieChart size={12} /> Segmentation
+        </h4>
         <div className="select-control">
           <label>Method</label>
           <select value={segMethod} onChange={(e) => setSegMethod(e.target.value)}>
@@ -106,7 +138,14 @@ export default function EdgeTab() {
             <option value="edge">Edge-based</option>
           </select>
         </div>
-        <button className="btn-block" onClick={handleApplySeg} disabled={isLoading}>Run Segmentation</button>
+        <button 
+          className="btn-block" 
+          onClick={handleApplySeg} 
+          disabled={isLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+        >
+          <PieChart size={13} /> Run Segmentation
+        </button>
       </section>
     </div>
   );

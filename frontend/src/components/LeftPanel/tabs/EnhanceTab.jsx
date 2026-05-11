@@ -3,6 +3,7 @@ import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
+import { Sun, BarChart2, Maximize } from 'lucide-react';
 
 export default function EnhanceTab() {
   const { 
@@ -86,21 +87,35 @@ export default function EnhanceTab() {
   return (
     <div className="tab-content">
       <section>
-        <h4>Brightness & contrast</h4>
-        <SliderControl label="Brightness" min={-100} max={100} value={brightness} onChange={setBrightness} />
-        <SliderControl label="Contrast" min={-100} max={100} value={contrast} onChange={setContrast} />
-        <SliderControl label="Sharpness" min={0} max={100} value={sharpness} onChange={setSharpness} />
-        <SliderControl label="Smoothing" min={0} max={100} value={smoothing} onChange={setSmoothing} />
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Sun size={12} /> Brightness & contrast
+        </h4>
+        <SliderControl label="Brightness" min={-100} max={100} value={brightness} onChange={setBrightness} defaultValue={0} />
+        <SliderControl label="Contrast" min={-100} max={100} value={contrast} onChange={setContrast} defaultValue={0} />
+        <SliderControl label="Sharpness" min={0} max={100} value={sharpness} onChange={setSharpness} defaultValue={0} />
+        <SliderControl label="Smoothing" min={0} max={100} value={smoothing} onChange={setSmoothing} defaultValue={0} />
         <div className="btn-group">
-          <button onClick={async () => {
-            const res = await executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob);
-            if (res) applyEditedBlob(res);
-          }}>Histogram Eq.</button>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={async () => {
+              const res = await executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob);
+              if (res) applyEditedBlob(res);
+            }}
+          >
+            <BarChart2 size={13} /> Histogram Eq.
+          </button>
         </div>
       </section>
 
       <section className="apply-section">
-        <button className="btn-block btn-primary" onClick={handleApply} disabled={isLoading}>Apply to Full Res</button>
+        <button 
+          className="btn-block btn-primary" 
+          onClick={handleApply} 
+          disabled={isLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+        >
+          <Maximize size={13} /> Apply to Full Res
+        </button>
       </section>
     </div>
   );

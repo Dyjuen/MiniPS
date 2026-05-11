@@ -2,6 +2,15 @@ import React, { useRef } from 'react';
 import { useAppState } from '../hooks/useAppState';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
+import { 
+  Crop, 
+  Maximize2, 
+  Move, 
+  RotateCw, 
+  FlipHorizontal, 
+  FlipVertical2, 
+  RefreshCw 
+} from 'lucide-react';
 
 export default function Toolbar() {
   const { 
@@ -57,25 +66,29 @@ export default function Toolbar() {
 
   const buttons = [
     { 
-      label: 'Crop', 
+      id: 'crop',
+      icon: <Crop size={18} />,
       action: toggleCrop, 
-      title: 'Toggle Crop Tool (C)', 
+      title: 'Crop', 
       className: selectedTool === 'crop' ? 'active' : '' 
     },
     { 
-      label: 'Transform', 
+      id: 'transform',
+      icon: <Maximize2 size={18} />,
       action: toggleTransform, 
-      title: 'Toggle Transform Tool (T)', 
+      title: 'Transform', 
       className: selectedTool === 'transform' ? 'active' : '' 
     },
     { 
-      label: 'Move', 
+      id: 'move',
+      icon: <Move size={18} />,
       action: () => { setSelectedTool('move'); setCropRect(null); }, 
-      title: 'Move Tool (V)',
+      title: 'Move',
       className: selectedTool === 'move' ? 'active' : '' 
     },
     { 
-      label: 'Rotate CW', 
+      id: 'rotate',
+      icon: <RotateCw size={18} />,
       action: () => {
         if (selectedTool === 'transform') {
           setTransformParams(prev => ({ ...prev, rotate: (prev.rotate + 90) % 360 }));
@@ -83,10 +96,11 @@ export default function Toolbar() {
           wrapOp('Rotate 90', api.applyRotate, 90, 'bilinear');
         }
       }, 
-      title: 'Rotate 90° Clockwise' 
+      title: 'Rotate CW' 
     },
     { 
-      label: 'Flip H', 
+      id: 'fliph',
+      icon: <FlipHorizontal size={18} />,
       action: () => {
         if (selectedTool === 'transform') {
           setTransformParams(prev => ({ ...prev, flipH: !prev.flipH }));
@@ -94,10 +108,11 @@ export default function Toolbar() {
           wrapOp('Flip H', api.applyFlip, 'horizontal');
         }
       }, 
-      title: 'Flip Horizontal' 
+      title: 'Flip H' 
     },
     { 
-      label: 'Flip V', 
+      id: 'flipv',
+      icon: <FlipVertical2 size={18} />,
       action: () => {
         if (selectedTool === 'transform') {
           setTransformParams(prev => ({ ...prev, flipV: !prev.flipV }));
@@ -105,21 +120,69 @@ export default function Toolbar() {
           wrapOp('Flip V', api.applyFlip, 'vertical');
         }
       }, 
-      title: 'Flip Vertical' 
+      title: 'Flip V' 
     },
-    { label: 'Reset', action: handleReset, className: 'btn-danger', title: 'Reset to Original' },
+    { 
+      id: 'reset',
+      icon: <RefreshCw size={18} />,
+      action: handleReset, 
+      className: 'btn-danger', 
+      title: 'Reset',
+      style: { marginLeft: 'auto' }
+    },
   ];
 
+  const btnStyle = {
+    width: '36px',
+    height: '36px',
+    padding: '0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '6px'
+  };
+
+  const dividerStyle = {
+    width: '1px',
+    height: '24px',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    margin: '0 8px'
+  };
+
   return (
-    <div className="toolbar">
-      {buttons.map((btn, i) => (
+    <div className="toolbar" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      {buttons.slice(0, 3).map((btn) => (
         <button 
-          key={i} 
+          key={btn.id} 
           className={`toolbar-btn ${btn.className || ''}`} 
           onClick={btn.action}
           title={btn.title}
+          style={btnStyle}
         >
-          {btn.label}
+          {btn.icon}
+        </button>
+      ))}
+      <div style={dividerStyle}></div>
+      {buttons.slice(3, 6).map((btn) => (
+        <button 
+          key={btn.id} 
+          className={`toolbar-btn ${btn.className || ''}`} 
+          onClick={btn.action}
+          title={btn.title}
+          style={btnStyle}
+        >
+          {btn.icon}
+        </button>
+      ))}
+      {buttons.slice(6).map((btn) => (
+        <button 
+          key={btn.id} 
+          className={`toolbar-btn ${btn.className || ''}`} 
+          onClick={btn.action}
+          title={btn.title}
+          style={{ ...btnStyle, ...btn.style }}
+        >
+          {btn.icon}
         </button>
       ))}
     </div>

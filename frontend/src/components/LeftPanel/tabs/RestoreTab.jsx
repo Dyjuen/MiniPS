@@ -3,6 +3,7 @@ import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
+import { Droplets, Filter, Zap, Palette, Circle, Layers, Maximize } from 'lucide-react';
 
 export default function RestoreTab() {
   const { proxyBlob, proxyUrl, fullResBlob, setCurrentImage, addToast, resetSignal, applyEditedBlob } = useAppState();
@@ -78,18 +79,24 @@ export default function RestoreTab() {
   return (
     <div className="tab-content">
       <section>
-        <h4>Gaussian blur</h4>
-        <SliderControl label="Blur strength" min={0} max={100} value={gBlur} unit="%" onChange={setGBlur} />
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Droplets size={12} /> Gaussian blur
+        </h4>
+        <SliderControl label="Blur strength" min={0} max={100} value={gBlur} unit="%" onChange={setGBlur} defaultValue={0} />
       </section>
 
       <section>
-        <h4>Median filter</h4>
-        <SliderControl label="Filter strength" min={0} max={100} value={mFilter} unit="%" onChange={setMFilter} />
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Filter size={12} /> Median filter
+        </h4>
+        <SliderControl label="Filter strength" min={0} max={100} value={mFilter} unit="%" onChange={setMFilter} defaultValue={0} />
       </section>
 
       <section>
-        <h4>Noise reduction</h4>
-        <SliderControl label="Reduction strength" min={0} max={100} value={noise} unit="%" onChange={setNoise} />
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Zap size={12} /> Noise reduction
+        </h4>
+        <SliderControl label="Reduction strength" min={0} max={100} value={noise} unit="%" onChange={setNoise} defaultValue={0} />
         <div className="select-control">
           <label>Method</label>
           <select value={noiseMethod} onChange={(e) => setNoiseMethod(e.target.value)}>
@@ -100,17 +107,36 @@ export default function RestoreTab() {
       </section>
 
       <section>
-        <h4>Color processing</h4>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Palette size={12} /> Color processing
+        </h4>
         <div className="btn-group">
-          <button onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) applyEditedBlob(res); }}>Grayscale</button>
-          <button onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) applyEditedBlob(res); }}>Split R</button>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) applyEditedBlob(res); }}
+          >
+            <Circle size={13} /> Grayscale
+          </button>
+          <button 
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) applyEditedBlob(res); }}
+          >
+            <Layers size={13} /> Split R
+          </button>
         </div>
-        <SliderControl label="Hue" min={-180} max={180} value={hue} unit="°" onChange={setHue} />
-        <SliderControl label="Saturation" min={-100} max={100} value={sat} onChange={setSat} />
+        <SliderControl label="Hue" min={-180} max={180} value={hue} unit="°" onChange={setHue} defaultValue={0} />
+        <SliderControl label="Saturation" min={-100} max={100} value={sat} onChange={setSat} defaultValue={0} />
       </section>
 
       <section className="apply-section">
-        <button className="btn-block btn-primary" onClick={handleApply} disabled={isLoading}>Apply to Full Res</button>
+        <button 
+          className="btn-block btn-primary" 
+          onClick={handleApply} 
+          disabled={isLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+        >
+          <Maximize size={13} /> Apply to Full Res
+        </button>
       </section>
     </div>
   );
