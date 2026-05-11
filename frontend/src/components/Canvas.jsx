@@ -36,6 +36,10 @@ export default function Canvas() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
+  // Pinch state
+  const [pinchStartDist, setPinchStartDist] = useState(null);
+  const [pinchStartZoom, setPinchStartZoom] = useState(null);
+
   const autoFit = useCallback(() => {
     if (!viewportRef.current || !imageMetadata.w || !imageMetadata.h) return;
 
@@ -52,7 +56,7 @@ export default function Canvas() {
     const scale = Math.min(availableWidth / imageMetadata.w, availableHeight / imageMetadata.h);
     const zoomPercent = Math.floor(scale * 100);
     
-    setZoomLevel(Math.min(400, Math.max(10, zoomPercent)));
+    setZoomLevel(Math.min(400, Math.max(25, zoomPercent)));
     setPanOffset({ x: 0, y: 0 });
   }, [imageMetadata.w, imageMetadata.h, isCompareMode, setZoomLevel]);
 
@@ -105,6 +109,60 @@ export default function Canvas() {
     setIsDragging(false);
   };
 
+  // Pinch handlers
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const handleWheelEvent = (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 5 : -5;
+        setZoomLevel(prev => Math.min(400, Math.max(25, prev + delta)));
+      }
+    };
+
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault(); // Block browser zoom/gestures
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        setPinchStartDist(dist);
+        setPinchStartZoom(zoomLevel);
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchStartDist !== null) {
+        e.preventDefault(); // Block browser zoom/gestures
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const newZoom = pinchStartZoom * (currentDist / pinchStartDist);
+        setZoomLevel(Math.min(400, Math.max(25, Math.floor(newZoom))));
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setPinchStartDist(null);
+      setPinchStartZoom(null);
+    };
+
+    // Register all as non-passive to guarantee preventDefault works
+    el.addEventListener('wheel', handleWheelEvent, { passive: false });
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      el.removeEventListener('wheel', handleWheelEvent);
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [setZoomLevel, pinchStartDist, pinchStartZoom, zoomLevel]);
+
   const handleApplyCrop = useCallback(async () => {
     if (!cropRect || !currentImage) return;
     const res = await executeOp('Crop', api.applyCrop, fullResBlob, 
@@ -141,7 +199,7 @@ export default function Canvas() {
   const imgStyle = { 
     width: `${(imageMetadata.w || 0) * (zoomLevel / 100)}px`,
     height: `${(imageMetadata.h || 0) * (zoomLevel / 100)}px`,
-    transition: 'none',
+    transition: 'transform 0.05s ease-out, width 0.05s ease-out, height 0.05s ease-out',
     display: 'block',
     userSelect: 'none',
     transformOrigin: 'center center',
@@ -170,7 +228,8 @@ export default function Canvas() {
             onMouseLeave={handleMouseUp}
             style={{ 
               overflow: 'hidden', 
-              cursor: selectedTool === 'move' ? (isDragging ? 'grabbing' : 'grab') : 'crosshair' 
+              cursor: selectedTool === 'move' ? (isDragging ? 'grabbing' : 'grab') : 'crosshair',
+              touchAction: 'none'
             }}
           >
             <div style={{ 
