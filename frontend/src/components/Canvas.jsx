@@ -24,7 +24,9 @@ export default function Canvas() {
     transformParams,
     setTransformParams,
     fullResBlob,
-    applyEditedBlob
+    applyEditedBlob,
+    setSeedPoint,
+    addToast
   } = useAppState();
   
   const { executeOp, isLoading, error } = useApi();
@@ -58,7 +60,7 @@ export default function Canvas() {
     const scale = Math.min(availableWidth / imageMetadata.w, availableHeight / imageMetadata.h);
     const zoomPercent = Math.floor(scale * 100);
     
-    setZoomLevel(Math.min(400, Math.max(25, zoomPercent)));
+    setZoomLevel(Math.min(400, Math.max(5, zoomPercent)));
     setPanOffset({ x: 0, y: 0 });
   }, [imageMetadata.w, imageMetadata.h, isCompareMode, setZoomLevel]);
 
@@ -132,6 +134,14 @@ export default function Canvas() {
       setIsDrawingCrop(true);
       setDrawStartPos({ x: startX, y: startY });
       setCropRect({ x: startX, y: startY, width: 0, height: 0 });
+    } else if (selectedTool === 'region-seed') {
+      const rect = imgRef.current.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left) / (zoomLevel / 100);
+      const rawY = (e.clientY - rect.top) / (zoomLevel / 100);
+      
+      setSeedPoint({ x: Math.floor(rawX), y: Math.floor(rawY) });
+      setSelectedTool('move');
+      addToast('Seed point set', 'success');
     } else {
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
@@ -157,8 +167,7 @@ export default function Canvas() {
     const handleWheelEvent = (e) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const delta = e.deltaY < 0 ? 5 : -5;
-        setZoomLevel(prev => Math.min(400, Math.max(25, prev + delta)));
+        setZoomLevel(prev => Math.min(400, Math.max(5, prev + delta)));
       }
     };
 
@@ -180,7 +189,7 @@ export default function Canvas() {
         const t2 = e.touches[1];
         const currentDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         const newZoom = pinchStartZoom * (currentDist / pinchStartDist);
-        setZoomLevel(Math.min(400, Math.max(25, Math.floor(newZoom))));
+        setZoomLevel(Math.min(400, Math.max(5, Math.floor(newZoom))));
       }
     };
 
@@ -211,7 +220,7 @@ export default function Canvas() {
       Math.floor(cropRect.width), 
       Math.floor(cropRect.height)
     );
-    if (res) applyEditedBlob(res);
+    if (res) applyEditedBlob(res, 'Crop');
     setCropRect(null);
     setSelectedTool('move');
   }, [cropRect, currentImage, executeOp, setCropRect, setSelectedTool, fullResBlob, applyEditedBlob]);
@@ -219,7 +228,7 @@ export default function Canvas() {
   const handleApplyTransform = useCallback(async () => {
     if (!transformParams || !currentImage) return;
     const res = await executeOp('Transform', api.applyGeometryTransform, fullResBlob, transformParams);
-    if (res) applyEditedBlob(res);
+    if (res) applyEditedBlob(res, 'Transform');
     setTransformParams({ scaleX: 1, scaleY: 1, rotate: 0, tx: 0, ty: 0, flipH: false, flipV: false });
     setSelectedTool('move');
   }, [transformParams, currentImage, executeOp, setTransformParams, setSelectedTool, fullResBlob, applyEditedBlob]);

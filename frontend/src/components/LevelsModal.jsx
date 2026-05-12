@@ -151,7 +151,7 @@ export default function LevelsModal() {
     if (!fullResBlob) return;
     try {
       const { blob } = await api.applyLevels(fullResBlob, black, mid, white, channel);
-      applyEditedBlob(blob);
+      applyEditedBlob(blob, 'Levels');
       setIsLevelsModalOpen(false);
       addToast('Levels applied', 'success');
     } catch (err) {

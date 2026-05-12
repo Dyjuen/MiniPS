@@ -3,7 +3,7 @@ import SliderControl from '../../SliderControl';
 import { useApi } from '../../../hooks/useApi';
 import { useAppState } from '../../../hooks/useAppState';
 import * as api from '../../../services/api';
-import { Sun, BarChart2, Maximize } from 'lucide-react';
+import { Sun, BarChart2, Maximize, Layers } from 'lucide-react';
 
 export default function EnhanceTab() {
   const { 
@@ -78,7 +78,7 @@ export default function EnhanceTab() {
     }
 
     if (resultBlob && resultBlob !== fullResBlob) {
-      applyEditedBlob(resultBlob);
+      applyEditedBlob(resultBlob, 'Enhancement');
       setBrightness(0); setContrast(0); setSharpness(0); setSmoothing(0);
       addToast('Applied to full resolution', 'success');
     }
@@ -99,11 +99,31 @@ export default function EnhanceTab() {
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={async () => {
               const res = await executeOp('Histogram Eq.', api.applyHistogramEq, fullResBlob);
-              if (res) applyEditedBlob(res);
+              if (res) applyEditedBlob(res, 'Histogram Eq.');
             }}
           >
             <BarChart2 size={13} /> Histogram Eq.
           </button>
+        </div>
+      </section>
+
+      <section>
+        <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Layers size={12} /> Color channels
+        </h4>
+        <div className="btn-group">
+          <button onClick={async () => {
+            const res = await executeOp('Split Red', api.applyChannelSplit, fullResBlob, 'R', 'colored');
+            if (res) applyEditedBlob(res, 'Split Red');
+          }} style={{ color: '#ff4444' }}>R</button>
+          <button onClick={async () => {
+            const res = await executeOp('Split Green', api.applyChannelSplit, fullResBlob, 'G', 'colored');
+            if (res) applyEditedBlob(res, 'Split Green');
+          }} style={{ color: '#44ff44' }}>G</button>
+          <button onClick={async () => {
+            const res = await executeOp('Split Blue', api.applyChannelSplit, fullResBlob, 'B', 'colored');
+            if (res) applyEditedBlob(res, 'Split Blue');
+          }} style={{ color: '#4444ff' }}>B</button>
         </div>
       </section>
 

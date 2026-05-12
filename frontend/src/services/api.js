@@ -108,9 +108,10 @@ export const applyMorphology = (blob, operation, kernel_size) =>
 // Color
 export const applyGrayscale = (blob) => postBinaryOp('/color/grayscale', blob);
 
-export const applyChannelSplit = (blob, channel) => 
+export const applyChannelSplit = (blob, channel, mode = 'colored') => 
   postBinaryOp('/color/channel-split', blob, {
-    'X-MiniPS-Channel': channel
+    'X-MiniPS-Channel': channel,
+    'X-MiniPS-Split-Mode': mode
   });
 
 export const applyColorAdjust = (blob, hue, saturation) => 

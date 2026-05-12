@@ -22,11 +22,14 @@ export default function EdgeTab() {
   const [edgeMethod, setEdgeMethod] = useState('canny');
   const [morphKernel, setMorphKernel] = useState(3);
   const [segMethod, setSegMethod] = useState('threshold');
+  const [segTolerance, setSegTolerance] = useState(10);
+  const { seedPoint, setSelectedTool } = useAppState();
 
   useEffect(() => {
     setThreshold(128);
     setEdgeMethod('canny');
     setMorphKernel(3);
+    setSegTolerance(10);
   }, [resetSignal]);
 
   // Live Preview Effect (Threshold) with Snap-back
@@ -37,23 +40,32 @@ export default function EdgeTab() {
     } else {
       setCurrentImage(proxyUrl);
     }
-  }, [threshold, proxyBlob, proxyUrl, setCurrentImage]);
+  }, [threshold, proxyBlob, proxyUrl, setCurrentImage, previewOp]);
 
   const handleApplyThreshold = async () => {
     if (!fullResBlob) return;
     const result = await executeOp('Threshold', api.applyThreshold, fullResBlob, threshold);
     if (result) {
-      applyEditedBlob(result);
+      applyEditedBlob(result, 'Threshold');
       setThreshold(128);
     }
   };
 
   const handleApplySeg = async () => {
     if (!fullResBlob) return;
-    const fn = segMethod === 'threshold' ? api.applySegThreshold : api.applySegEdge;
-    const arg = segMethod === 'threshold' ? 127 : 'canny';
-    const result = await executeOp('Segmentation', fn, fullResBlob, arg);
-    if (result) applyEditedBlob(result);
+    let result;
+    if (segMethod === 'threshold') {
+      result = await executeOp('Segmentation', api.applySegThreshold, fullResBlob, 127);
+    } else if (segMethod === 'edge') {
+      result = await executeOp('Segmentation', api.applySegEdge, fullResBlob, 'canny');
+    } else if (segMethod === 'region') {
+      if (seedPoint.x === null) {
+        addToast('Please pick a seed point first', 'warning');
+        return;
+      }
+      result = await executeOp('Segmentation', api.applySegRegion, fullResBlob, seedPoint.x, seedPoint.y, segTolerance);
+    }
+    if (result) applyEditedBlob(result, 'Segmentation');
   };
 
   return (
@@ -93,7 +105,7 @@ export default function EdgeTab() {
           style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
           onClick={async () => {
             const res = await executeOp('Edge Detection', api.applyEdge, fullResBlob, edgeMethod);
-            if (res) applyEditedBlob(res);
+            if (res) applyEditedBlob(res, 'Edge Detection');
           }}
         >
           <Scan size={13} /> Apply Edge
@@ -110,7 +122,7 @@ export default function EdgeTab() {
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={async () => {
               const res = await executeOp('Erosion', api.applyMorphology, fullResBlob, 'erosion', morphKernel);
-              if (res) applyEditedBlob(res);
+              if (res) applyEditedBlob(res, 'Erosion');
             }}
           >
             <Minus size={13} /> Erosion
@@ -119,7 +131,7 @@ export default function EdgeTab() {
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={async () => {
               const res = await executeOp('Dilation', api.applyMorphology, fullResBlob, 'dilation', morphKernel);
-              if (res) applyEditedBlob(res);
+              if (res) applyEditedBlob(res, 'Dilation');
             }}
           >
             <Plus size={13} /> Dilation
@@ -136,13 +148,33 @@ export default function EdgeTab() {
           <select value={segMethod} onChange={(e) => setSegMethod(e.target.value)}>
             <option value="threshold">Threshold-based</option>
             <option value="edge">Edge-based</option>
+            <option value="region">Region Growing</option>
           </select>
         </div>
+        
+        {segMethod === 'region' && (
+          <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '12px', color: '#aaa' }}>
+                Seed: {seedPoint.x !== null ? `${seedPoint.x}, ${seedPoint.y}` : 'Not set'}
+              </span>
+              <button 
+                className="btn-sm" 
+                onClick={() => setSelectedTool('region-seed')}
+                style={{ fontSize: '11px', padding: '2px 8px' }}
+              >
+                Pick Seed
+              </button>
+            </div>
+            <SliderControl label="Tolerance" min={1} max={100} value={segTolerance} onChange={setSegTolerance} defaultValue={10} />
+          </div>
+        )}
+
         <button 
           className="btn-block" 
           onClick={handleApplySeg} 
           disabled={isLoading}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' }}
         >
           <PieChart size={13} /> Run Segmentation
         </button>

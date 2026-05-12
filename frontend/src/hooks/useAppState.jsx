@@ -36,10 +36,12 @@ export function AppProvider({ children }) {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [fullResBlob, setFullResBlob] = useState(null);
   const [proxyBlob, setProxyBlob] = useState(null);
+  const [originalProxyBlob, setOriginalProxyBlob] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [resetSignal, setResetSignal] = useState(0);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isLevelsModalOpen, setIsLevelsModalOpen] = useState(false);
+  const [seedPoint, setSeedPoint] = useState({ x: null, y: null });
 
   // Stable URL for the base proxy
   const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
@@ -52,13 +54,16 @@ export function AppProvider({ children }) {
     }, 3000);
   }, []);
 
-  const createProxy = (img) => {
+  const createProxy = (img, isInitial = false) => {
     const canvas = document.createElement('canvas');
     const scale = Math.min(1, 1024 / Math.max(img.width, img.height));
     canvas.width = img.width * scale;
     canvas.height = img.height * scale;
     canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => setProxyBlob(blob), 'image/jpeg', 0.9);
+    canvas.toBlob((blob) => {
+      setProxyBlob(blob);
+      if (isInitial) setOriginalProxyBlob(blob);
+    }, 'image/jpeg', 0.9);
   };
 
   const handleLoadImage = useCallback((file) => {
@@ -82,8 +87,8 @@ export function AppProvider({ children }) {
         fileSize: `${(file.size / 1024).toFixed(1)} KB`
       };
       setImageMetadata(metadata);
-      createProxy(img);
-      setHistory([{ url, blob: file, metadata }]);
+      createProxy(img, true);
+      setHistory([{ url, blob: file, metadata, ops: [] }]);
       setHistoryIndex(0);
     };
     img.src = url;
@@ -110,8 +115,8 @@ export function AppProvider({ children }) {
           fileSize: `${(originalBlob.size / 1024).toFixed(1)} KB`
         };
         setImageMetadata(metadata);
-        createProxy(img);
-        setHistory([{ url, blob: originalBlob, metadata }]);
+        createProxy(img, true);
+        setHistory([{ url, blob: originalBlob, metadata, ops: [] }]);
         setHistoryIndex(0);
       };
       img.src = url;
@@ -119,7 +124,7 @@ export function AppProvider({ children }) {
   }, [originalBlob]);
 
   const handleZoom = useCallback((delta) => {
-    setZoomLevel(prev => Math.min(400, Math.max(25, prev + delta)));
+    setZoomLevel(prev => Math.min(400, Math.max(5, prev + delta)));
   }, []);
 
   const undo = useCallback(() => {
@@ -130,6 +135,7 @@ export function AppProvider({ children }) {
       setCurrentImage(state.url);
       setFullResBlob(state.blob);
       setImageMetadata(state.metadata);
+      setAppliedOps(state.ops || []);
       
       const img = new Image();
       img.onload = () => createProxy(img);
@@ -146,6 +152,7 @@ export function AppProvider({ children }) {
       setCurrentImage(state.url);
       setFullResBlob(state.blob);
       setImageMetadata(state.metadata);
+      setAppliedOps(state.ops || []);
 
       const img = new Image();
       img.onload = () => createProxy(img);
@@ -154,10 +161,14 @@ export function AppProvider({ children }) {
     }
   }, [history, historyIndex, addToast]);
 
-  const applyEditedBlob = useCallback((blob) => {
+  const applyEditedBlob = useCallback((blob, opName) => {
     setFullResBlob(blob);
     const url = URL.createObjectURL(blob);
     
+    // Update appliedOps atomically
+    const newOps = opName ? [...appliedOps, opName] : [...appliedOps];
+    if (opName) setAppliedOps(newOps);
+
     const img = new Image();
     img.onload = () => {
       const metadata = {
@@ -171,7 +182,7 @@ export function AppProvider({ children }) {
       createProxy(img);
 
       const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push({ url, blob, metadata });
+      newHistory.push({ url, blob, metadata, ops: newOps });
       if (newHistory.length > 11) newHistory.shift();
       
       setHistory(newHistory);
@@ -179,7 +190,7 @@ export function AppProvider({ children }) {
     };
     img.src = url;
     setCurrentImage(url);
-  }, [imageMetadata, history, historyIndex]);
+  }, [imageMetadata, history, historyIndex, appliedOps]);
 
   const value = {
     currentImage, setCurrentImage,
@@ -188,6 +199,7 @@ export function AppProvider({ children }) {
     isCompareMode, setIsCompareMode,
     fullResBlob, setFullResBlob,
     proxyBlob, setProxyBlob,
+    originalProxyBlob, setOriginalProxyBlob,
     proxyUrl,
     imageMetadata, setImageMetadata,
     zoomLevel, setZoomLevel,
@@ -207,6 +219,7 @@ export function AppProvider({ children }) {
     handleZoom,
     isExportModalOpen, setIsExportModalOpen,
     isLevelsModalOpen, setIsLevelsModalOpen,
+    seedPoint, setSeedPoint,
     applyEditedBlob,
     undo,
     redo

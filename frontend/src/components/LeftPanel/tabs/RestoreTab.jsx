@@ -70,7 +70,7 @@ export default function RestoreTab() {
     if (hue !== 0 || sat !== 0) result = await executeOp('Color Adjust', api.applyColorAdjust, result, hue, sat);
 
     if (result && result !== fullResBlob) {
-      applyEditedBlob(result);
+      applyEditedBlob(result, 'Restoration');
       setGBlur(0); setMFilter(0); setNoise(0); setHue(0); setSat(0);
       addToast('Applied to full resolution', 'success');
     }
@@ -113,15 +113,9 @@ export default function RestoreTab() {
         <div className="btn-group">
           <button 
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) applyEditedBlob(res); }}
+            onClick={async () => { const res = await executeOp('Grayscale', api.applyGrayscale, fullResBlob); if (res) applyEditedBlob(res, 'Grayscale'); }}
           >
             <Circle size={13} /> Grayscale
-          </button>
-          <button 
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-            onClick={async () => { const res = await executeOp('Split R', api.applyChannelSplit, fullResBlob, 'R'); if (res) applyEditedBlob(res); }}
-          >
-            <Layers size={13} /> Split R
           </button>
         </div>
         <SliderControl label="Hue" min={-180} max={180} value={hue} unit="°" onChange={setHue} defaultValue={0} />

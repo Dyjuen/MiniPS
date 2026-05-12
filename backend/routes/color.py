@@ -30,14 +30,15 @@ async def grayscale(request: Request):
 @router.post("/channel-split")
 async def channel_split(
     request: Request,
-    x_minips_channel: str = Header("R", alias="X-MiniPS-Channel")
+    x_minips_channel: str = Header("R", alias="X-MiniPS-Channel"),
+    x_minips_mode: str = Header("colored", alias="X-MiniPS-Split-Mode")
 ):
     img = await get_image_from_body(request)
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         request.app.state.executor,
         split_channels,
-        img, x_minips_channel
+        img, x_minips_channel, x_minips_mode
     )
     return Response(content=ndarray_to_jpeg_bytes(result), media_type="image/jpeg")
 

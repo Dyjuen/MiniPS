@@ -42,12 +42,7 @@ export function useApi() {
 
     try {
       const { blob: resultBlob, headers } = await apiFn(baseBlob, ...args);
-      setLastHeaders(headers);
-      const newImageUrl = URL.createObjectURL(resultBlob);
-      
-      setCurrentImage(newImageUrl);
-      setAppliedOps([...appliedOps, opName]);
-      
+      // setLastHeaders(headers); // Keep this if needed
       return resultBlob;
     } catch (err) {
       if (err.name === 'AbortError') return;
