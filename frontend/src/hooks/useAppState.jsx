@@ -41,7 +41,7 @@ export function AppProvider({ children }) {
   const [resetSignal, setResetSignal] = useState(0);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isLevelsModalOpen, setIsLevelsModalOpen] = useState(false);
-  const [seedPoint, setSeedPoint] = useState({ x: null, y: null });
+  const [seeds, setSeeds] = useState([]);
 
   // Stable URL for the base proxy
   const proxyUrl = useMemo(() => proxyBlob ? URL.createObjectURL(proxyBlob) : null, [proxyBlob]);
@@ -140,6 +140,7 @@ export function AppProvider({ children }) {
       const img = new Image();
       img.onload = () => createProxy(img);
       img.src = state.url;
+      setResetSignal(prev => prev + 1);
       addToast('Undo applied');
     }
   }, [history, historyIndex, addToast]);
@@ -157,6 +158,7 @@ export function AppProvider({ children }) {
       const img = new Image();
       img.onload = () => createProxy(img);
       img.src = state.url;
+      setResetSignal(prev => prev + 1);
       addToast('Redo applied');
     }
   }, [history, historyIndex, addToast]);
@@ -219,7 +221,7 @@ export function AppProvider({ children }) {
     handleZoom,
     isExportModalOpen, setIsExportModalOpen,
     isLevelsModalOpen, setIsLevelsModalOpen,
-    seedPoint, setSeedPoint,
+    seeds, setSeeds,
     applyEditedBlob,
     undo,
     redo

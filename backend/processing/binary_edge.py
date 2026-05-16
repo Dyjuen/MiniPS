@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def apply_threshold(image_ndarray, value=127, method="binary"):
+def apply_threshold(image_ndarray, value=127, method="binary", auto=False):
     """Apply thresholding to image"""
     # Ensure grayscale
     if len(image_ndarray.shape) == 3:
@@ -10,64 +10,96 @@ def apply_threshold(image_ndarray, value=127, method="binary"):
         gray = image_ndarray
         
     thresh_type = cv2.THRESH_BINARY
-    if method == "otsu":
+    if auto or method == "otsu":
         thresh_type += cv2.THRESH_OTSU
         
-    _, result = cv2.threshold(gray, value, 255, thresh_type)
-    return result
+    val, result = cv2.threshold(gray, value, 255, thresh_type)
+    return (result, {"value": int(val)}) if auto else result
 
-def detect_edges(image_ndarray, method="canny", scale=1.0):
-    """Detect edges in image"""
+def detect_edges(image_ndarray, method="canny", scale=1.0, low_threshold=100, high_threshold=200, ksize=3, sigma=1.0, auto=False):
+    """Detect edges in image with specific parameters or auto-calculation."""
     # Ensure grayscale
     if len(image_ndarray.shape) == 3:
         gray = cv2.cvtColor(image_ndarray, cv2.COLOR_RGB2GRAY)
     else:
-        gray = image_ndarray
+        gray = image_ndarray.copy()
         
+    applied_params = {}
+
     if method == "canny":
-        # Scale Canny thresholds by resolution? 
-        # Usually Canny is more sensitive at high res.
-        # But fixed pixel thresholds are standard. 
-        # Just return result.
-        return cv2.Canny(gray, 100, 200)
+        if auto:
+            # Median-based heuristic for Canny thresholds
+            v = np.median(gray)
+            sigma_val = 0.33
+            low_threshold = int(max(0, (1.0 - sigma_val) * v))
+            high_threshold = int(min(255, (1.0 + sigma_val) * v))
+            applied_params = {"low_threshold": low_threshold, "high_threshold": high_threshold}
+        
+        # Aperture size for Canny (must be 3, 5, or 7)
+        aperture = ksize if ksize in [3, 5, 7] else 3
+        res = cv2.Canny(gray, low_threshold, high_threshold, apertureSize=aperture)
+        return (res, applied_params) if auto else res
+
     elif method == "sobel":
-        # Sobel radius is fixed (3x3), but we can blur before to normalize
-        sigma = 1.0 * scale
-        gray = cv2.GaussianBlur(gray, (0, 0), sigma)
-        grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-        grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-        return cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        if auto:
+            # Default "auto" for Sobel is just standard params
+            ksize = 3
+            sigma = 1.0
+            applied_params = {"ksize": ksize, "sigma": sigma}
+        
+        # Ensure ksize is odd and valid for Sobel
+        k = ksize if ksize % 2 != 0 and 1 <= ksize <= 31 else 3
+        gray_blur = cv2.GaussianBlur(gray, (0, 0), sigma * scale)
+        grad_x = cv2.Sobel(gray_blur, cv2.CV_64F, 1, 0, ksize=k)
+        grad_y = cv2.Sobel(gray_blur, cv2.CV_64F, 0, 1, ksize=k)
+        res = cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        return (res, applied_params) if auto else res
+
     elif method == "prewitt":
-        sigma = 1.0 * scale
-        gray = cv2.GaussianBlur(gray, (0, 0), sigma)
+        if auto:
+            sigma = 1.0
+            applied_params = {"sigma": sigma}
+        gray_blur = cv2.GaussianBlur(gray, (0, 0), sigma * scale)
         kernel_x = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]], dtype=np.float32)
         kernel_y = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]], dtype=np.float32)
-        grad_x = cv2.filter2D(gray, cv2.CV_64F, kernel_x)
-        grad_y = cv2.filter2D(gray, cv2.CV_64F, kernel_y)
-        return cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        grad_x = cv2.filter2D(gray_blur, cv2.CV_64F, kernel_x)
+        grad_y = cv2.filter2D(gray_blur, cv2.CV_64F, kernel_y)
+        res = cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        return (res, applied_params) if auto else res
+
     elif method == "roberts":
-        # Roberts is 2x2, very sensitive to noise but also very sensitive to blur.
-        # Use very small fixed blur.
-        gray = cv2.GaussianBlur(gray, (0, 0), 0.5)
+        if auto:
+            sigma = 0.5
+            applied_params = {"sigma": sigma}
+        gray_blur = cv2.GaussianBlur(gray, (0, 0), sigma * scale)
         kernel_x = np.array([[1, 0], [0, -1]], dtype=np.float32)
         kernel_y = np.array([[0, 1], [-1, 0]], dtype=np.float32)
-        grad_x = cv2.filter2D(gray, cv2.CV_64F, kernel_x)
-        grad_y = cv2.filter2D(gray, cv2.CV_64F, kernel_y)
-        return cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        grad_x = cv2.filter2D(gray_blur, cv2.CV_64F, kernel_x)
+        grad_y = cv2.filter2D(gray_blur, cv2.CV_64F, kernel_y)
+        res = cv2.convertScaleAbs(cv2.magnitude(grad_x, grad_y))
+        return (res, applied_params) if auto else res
+
     elif method == "laplacian":
-        # Laplacian: Reduce blur to keep edges sharp, then normalize for visibility
-        blur_sigma = max(0.5, min(scale * 0.5, 1.0))
-        gray = cv2.GaussianBlur(gray, (0, 0), blur_sigma)
-        lap = cv2.Laplacian(gray, cv2.CV_64F)
-        return cv2.convertScaleAbs(lap, alpha=1.5) # Slight boost
+        if auto:
+            ksize = 3
+            sigma = 1.0
+            applied_params = {"ksize": ksize, "sigma": sigma}
+        k = ksize if ksize % 2 != 0 else 3
+        gray_blur = cv2.GaussianBlur(gray, (0, 0), sigma * scale)
+        lap = cv2.Laplacian(gray_blur, cv2.CV_64F, ksize=k)
+        res = cv2.convertScaleAbs(lap, alpha=1.5)
+        return (res, applied_params) if auto else res
+
     elif method == "log":
-        # LoG: Slightly more blur than Laplacian, then normalize
-        blur_sigma = max(1.0, min(scale, 2.0))
-        gray = cv2.GaussianBlur(gray, (0, 0), blur_sigma)
-        log_res = cv2.Laplacian(gray, cv2.CV_64F)
-        return cv2.convertScaleAbs(log_res, alpha=2.0) # More boost for LoG
+        if auto:
+            sigma = 1.5
+            applied_params = {"sigma": sigma}
+        gray_blur = cv2.GaussianBlur(gray, (0, 0), sigma * scale)
+        log_res = cv2.Laplacian(gray_blur, cv2.CV_64F)
+        res = cv2.convertScaleAbs(log_res, alpha=2.0)
+        return (res, applied_params) if auto else res
     
-    return gray
+    return (gray, {}) if auto else gray
 
 def apply_morphology(image_ndarray, operation="erosion", kernel_size=3):
     """Apply morphological operations. kernel_size must be pre-scaled."""

@@ -41,9 +41,12 @@ export function useApi() {
     setError(null);
 
     try {
-      const { blob: resultBlob, headers } = await apiFn(baseBlob, ...args);
-      // setLastHeaders(headers); // Keep this if needed
-      return resultBlob;
+      const response = await apiFn(baseBlob, ...args);
+      // If response has data (JSON), it contains blob + extra info
+      if (response.data) {
+        return { blob: response.data.blob, params: response.data.params };
+      }
+      return response.blob;
     } catch (err) {
       if (err.name === 'AbortError') return;
       console.error(`Error applying ${opName}:`, err);
@@ -67,10 +70,12 @@ export function useApi() {
     const run = async (blob, fn, fnArgs) => {
       activeRequest.current = true;
       try {
-        const { blob: resultBlob, headers } = await fn(blob, ...fnArgs);
-        setLastHeaders(headers);
+        const response = await fn(blob, ...fnArgs);
+        const resultBlob = response.data ? response.data.blob : response.blob;
+        setLastHeaders(response.headers);
         const newImageUrl = URL.createObjectURL(resultBlob);
         setCurrentImage(newImageUrl);
+        return response.data ? response.data.params : null;
       } catch (err) {
         console.error('Preview failed:', err);
       } finally {

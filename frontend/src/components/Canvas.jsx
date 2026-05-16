@@ -25,7 +25,8 @@ export default function Canvas() {
     setTransformParams,
     fullResBlob,
     applyEditedBlob,
-    setSeedPoint,
+    seeds,
+    setSeeds,
     addToast
   } = useAppState();
   
@@ -139,9 +140,8 @@ export default function Canvas() {
       const rawX = (e.clientX - rect.left) / (zoomLevel / 100);
       const rawY = (e.clientY - rect.top) / (zoomLevel / 100);
       
-      setSeedPoint({ x: Math.floor(rawX), y: Math.floor(rawY) });
-      setSelectedTool('move');
-      addToast('Seed point set', 'success');
+      setSeeds(prev => [...prev, [Math.floor(rawX), Math.floor(rawY)]]);
+      addToast('Seed point added', 'success');
     } else {
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
@@ -311,6 +311,28 @@ export default function Canvas() {
                   draggable="false"
                   style={imgStyle}
                 />
+                
+                {/* Seed Markers */}
+                {seeds.map((s, i) => (
+                  <div 
+                    key={i}
+                    className="seed-marker"
+                    style={{
+                      position: 'absolute',
+                      left: s[0] * (zoomLevel / 100),
+                      top: s[1] * (zoomLevel / 100),
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                      border: '1px solid white',
+                      transform: 'translate(-50%, -50%)',
+                      pointerEvents: 'none',
+                      zIndex: 10
+                    }}
+                  />
+                ))}
+
                 {selectedTool === 'crop' && cropRect && (
                   <CropOverlay 
                     imgRect={{ width: imageMetadata.w, height: imageMetadata.h }}
